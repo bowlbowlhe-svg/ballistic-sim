@@ -49,9 +49,19 @@ def require_weather() -> Any:
     return try_import("cfgrib", "weather")
 
 
+def require_netcdf4() -> Any:
+    """NetCDF 气象数据读取（netCDF4）。"""
+    return try_import("netCDF4", "weather")
+
+
 def require_rasterio() -> Any:
     """地形栅格读取（rasterio）。"""
     return try_import("rasterio", "terrain")
+
+
+def require_shapely() -> Any:
+    """地形几何运算（shapely）。"""
+    return try_import("shapely", "terrain")
 
 
 def require_requests() -> Any:
@@ -59,11 +69,26 @@ def require_requests() -> Any:
     return try_import("requests", "srtm")
 
 
+def require_srtm() -> Any:
+    """SRTM 高程数据读取（srtm.py）。"""
+    return try_import("srtm", "srtm")
+
+
 def require_gpu() -> Any:
     """GPU 加速（cupy）。"""
+    return try_import("cupy", "gpu")
+
+
+def require_cupy() -> Any:
+    """GPU 加速（cupy）别名。"""
     return try_import("cupy", "gpu")
 
 
 def require_fastapi() -> Any:
     """Web API（fastapi / uvicorn）。"""
     return try_import("fastapi", "web")
+
+
+def require_uvicorn() -> Any:
+    """Web 服务（uvicorn）。"""
+    return try_import("uvicorn", "web")
