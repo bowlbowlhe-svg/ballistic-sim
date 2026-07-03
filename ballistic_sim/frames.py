@@ -35,6 +35,8 @@ __all__ = [
     "enu_to_ecef_vec",
     "ecef_to_enu_vec",
     "launch_state_eci",
+    "haversine_distance",
+    "initial_bearing",
 ]
 
 _B_POLAR = WGS84_A * np.sqrt(1.0 - WGS84_E2)
@@ -177,3 +179,23 @@ def launch_state_eci(
     r_eci = ecef_to_eci(r_ecef, t, theta0)
     v_eci = vel_ecef_to_eci(r_ecef, np.zeros(3), t, theta0)
     return (r_eci, v_eci)
+
+
+def haversine_distance(lat1_deg: float, lon1_deg: float, lat2_deg: float, lon2_deg: float) -> float:
+    """大地线距离 (m)，使用地球平均半径近似。"""
+    R = 6371000.0
+    phi1, phi2 = np.radians(lat1_deg), np.radians(lat2_deg)
+    dphi = np.radians(lat2_deg - lat1_deg)
+    dlambda = np.radians(lon2_deg - lon1_deg)
+    a = np.sin(dphi / 2.0) ** 2 + np.cos(phi1) * np.cos(phi2) * np.sin(dlambda / 2.0) ** 2
+    return float(2.0 * R * np.arcsin(np.sqrt(a)))
+
+
+def initial_bearing(lat1_deg: float, lon1_deg: float, lat2_deg: float, lon2_deg: float) -> float:
+    """大圆初始方位角 (deg, 自北顺时针)。"""
+    phi1, phi2 = np.radians(lat1_deg), np.radians(lat2_deg)
+    dlambda = np.radians(lon2_deg - lon1_deg)
+    x = np.sin(dlambda) * np.cos(phi2)
+    y = np.cos(phi1) * np.sin(phi2) - np.sin(phi1) * np.cos(phi2) * np.cos(dlambda)
+    brg = np.degrees(np.arctan2(x, y))
+    return float((brg + 360.0) % 360.0)

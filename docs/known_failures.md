@@ -28,3 +28,19 @@
 - 推力偏心距较大时的姿态发散。
 - 初始角速度过大导致的陀螺耦合发散。
 - 静稳定距接近零（``Xcp ≈ Xcg``）时警告并退化为默认 0.05 m，可能影响稳定性结论。
+
+## 阶段 3 6-DOF 控制限制
+
+阶段 3 完成 6-DOF 控制律接口（``ballistic_sim.guidance.control``）迁移，但明确限制以下行为，避免从当前 3-DOF/MPM 流程中隐式升维导致积分发散或结果不可解释：
+
+| 编号 | 配置/输入 | 现象 | 复现步骤 | 备注 |
+|---|---|---|---|---|
+| KF-002 | 直接对 3-DOF（7 维）或 MPM（8 维）状态调用 ``SixDOFControl.control_moment`` | 抛出 ``NoAutoDimensionUpgrade``，提示须显式提供 13 维状态 | 1. ``ctrl = SixDOFControl()``<br>2. ``y = np.zeros(7)``<br>3. ``ctrl.control_moment(y)`` | 设计约束：禁止 3-DOF → 6-DOF 自动升维；姿态/角速度信息必须由用户显式给出。 |
+| KF-003 | 提供 13 维状态但初始四元数模长为 0 | 抛出 ``NoAutoDimensionUpgrade``，视为未提供初始姿态 | 1. ``y = np.concatenate([np.zeros(6), [0,0,0,0], np.zeros(3)])``<br>2. ``SixDOFControl().control_moment(y)`` | 四元数零向量无法定义有效初始姿态。 |
+| KF-004 | 在火箭/ICBM 动力上升段启用 6-DOF 控制 | 当前未接入 PoweredECIDynamics；控制矩接口被调用但不会影响 3-DOF 轨迹 | 1. 构建 ``PoweredECIDynamics``<br>2. 尝试注入 ``SixDOFControl`` | 阶段 3 仅完成控制律接口骨架；6-DOF 动力学闭环集成待阶段 4/5。 |
+
+## 待验证 / 风险区域（阶段 3 新增）
+
+- 6-DOF 控制律与真实气动力矩/惯量耦合后的数值稳定性。
+- 再入段高动态压力下鸭舵饱和与脉冲发动机死区设计。
+- 多阶段任务中 6-DOF 状态在阶段间投影（降维/升维）的守恒性。

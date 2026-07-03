@@ -15,7 +15,11 @@ from ballistic_sim.dynamics.common import (
     dynamic_pressure,
     mach_number,
 )
-from ballistic_sim.frames import ecef_to_geodetic, eci_to_ecef, enu_basis
+from ballistic_sim.guidance.open_loop import (
+    flight_path_angle,
+    thrust_dir_eci,
+    thrust_dir_upperstage,
+)
 from ballistic_sim.models.gravity import gravity_eci
 from ballistic_sim.models.propulsion import PropulsionModel
 
@@ -25,7 +29,7 @@ class PoweredECIDynamics:
     """ECI 动力上升段 3-DOF 质点 RHS。
 
     状态向量 ``[r_eci(3), v_eci(3), m]``，推进期间 ``dm/dt = -mdot``。
-    制导律支持三段式开环（垂直起飞 -> 程序俯仰 -> 重力转弯）以及上面级线性压平。
+    制导律复用 :mod:`ballistic_sim.guidance.open_loop` / :mod:`ballistic_sim.guidance.peg`。
     """
 
     stage: Dict[str, Any] = field(default_factory=dict)
@@ -62,105 +66,18 @@ class PoweredECIDynamics:
         return np.concatenate([r0, v0_eci, [m0]])
 
     def _altitude(self, r: np.ndarray) -> float:
-        r_ecef = eci_to_ecef(r, 0.0)
-        _, _, alt = ecef_to_geodetic(r_ecef)
-        return float(alt)
+        """几何高度：球近似高（与 lvsim 一致）。"""
+        return float(np.linalg.norm(r)) - WGS84_A
 
     def _rel_velocity(self, r: np.ndarray, v: np.ndarray) -> np.ndarray:
         return v - np.cross(self._omega_vec, r)
 
-    def _safe_normalize(self, vec: np.ndarray, fallback: np.ndarray) -> np.ndarray:
-        n = float(np.linalg.norm(vec))
-        if n < 1e-12:
-            return np.asarray(fallback, dtype=float).copy()
-        return vec / n
-
-    def _local_up(self, r: np.ndarray) -> np.ndarray:
-        return self._safe_normalize(r, np.array([0.0, 0.0, 1.0]))
-
-    def _downrange_hat(self, t: float) -> np.ndarray:
-        az = float(self.guidance.get("azimuth_deg", 0.0)) * DEG2RAD
-        lat = float(self.guidance.get("lat_deg", 0.0))
-        lon = float(self.guidance.get("lon_deg", 0.0))
-        e_hat, n_hat, _ = enu_basis(lat, lon)
-        d_ecef = np.sin(az) * e_hat + np.cos(az) * n_hat
-        from ballistic_sim.frames import ecef_to_eci
-
-        d_eci = ecef_to_eci(d_ecef, t)
-        return self._safe_normalize(d_eci, np.array([1.0, 0.0, 0.0]))
-
-    def _pitch_dir(self, up: np.ndarray, dr: np.ndarray, tilt_deg: float) -> np.ndarray:
-        horiz = dr - np.dot(dr, up) * up
-        horiz = self._safe_normalize(horiz, dr)
-        tilt = float(tilt_deg) * DEG2RAD
-        d = np.cos(tilt) * up + np.sin(tilt) * horiz
-        return self._safe_normalize(d, up)
-
-    def _flight_path_angle(self, r: np.ndarray, v: np.ndarray) -> float:
-        vn = float(np.linalg.norm(v))
-        if vn < 1.0:
-            return 0.0
-        up = self._local_up(r)
-        return float(np.arcsin(np.clip(np.dot(v, up) / vn, -1.0, 1.0)))
-
-    def _thrust_dir(self, t: float, r: np.ndarray, v: np.ndarray) -> np.ndarray:
+    def _thrust_dir(self, t: float, r: np.ndarray, v: np.ndarray, m: float) -> np.ndarray:
+        """调用统一制导入口。"""
         g = self.guidance
         if self.use_upperstage:
-            return self._thrust_dir_upperstage(t, r, v, g)
-        t_pitch = float(g.get("t_pitchover", 0.0))
-        t_kick_end = float(g.get("t_kick_end", 0.0))
-        kick_deg = float(g.get("kick_deg", 0.0))
-        up = self._local_up(r)
-        dr = self._downrange_hat(t)
-        if t < t_pitch:
-            return up
-        if t_kick_end <= t_pitch or t < t_kick_end:
-            frac = (
-                0.0
-                if t_kick_end <= t_pitch
-                else min(max((t - t_pitch) / (t_kick_end - t_pitch), 0.0), 1.0)
-            )
-            return self._pitch_dir(up, dr, kick_deg * frac)
-        v_rel = self._rel_velocity(r, v)
-        vn = float(np.linalg.norm(v_rel))
-        if vn >= 1.0:
-            return self._safe_normalize(v_rel, dr)
-        return self._pitch_dir(up, dr, kick_deg)
-
-    def _thrust_dir_upperstage(
-        self, t: float, r: np.ndarray, v: np.ndarray, g: Dict[str, Any]
-    ) -> np.ndarray:
-        up = self._local_up(r)
-        t_start = float(g.get("t_us_start", 0.0))
-        gamma_end = float(g.get("gamma_end_deg", 0.0)) * DEG2RAD
-        gamma0_deg = g.get("gamma0_deg", None)
-        if gamma0_deg is None:
-            gamma0 = self._flight_path_angle(r, v)
-        else:
-            gamma0 = float(gamma0_deg) * DEG2RAD
-        rate = g.get("pitch_rate_dps", None)
-        dur = g.get("t_us_dur", None)
-        dt = max(t - t_start, 0.0)
-        if rate is not None and float(rate) > 0.0:
-            r_rad = float(rate) * DEG2RAD
-            gamma_cmd = max(gamma0 - r_rad * dt, gamma_end)
-        elif dur is not None and float(dur) > 1e-12:
-            frac = min(max(dt / float(dur), 0.0), 1.0)
-            gamma_cmd = gamma0 + (gamma_end - gamma0) * frac
-        else:
-            gamma_cmd = gamma_end
-        vn = float(np.linalg.norm(v))
-        h_hat = None
-        if vn >= 1.0:
-            horiz = v - np.dot(v, up) * up
-            if float(np.linalg.norm(horiz)) >= 1e-12:
-                h_hat = horiz / float(np.linalg.norm(horiz))
-        if h_hat is None:
-            dr = self._downrange_hat(t)
-            horiz = dr - np.dot(dr, up) * up
-            h_hat = self._safe_normalize(horiz, np.array([1.0, 0.0, 0.0]))
-        d = np.cos(gamma_cmd) * h_hat + np.sin(gamma_cmd) * up
-        return self._safe_normalize(d, h_hat)
+            return thrust_dir_upperstage(t, r, v, g)
+        return thrust_dir_eci(t, r, v, g, m=m)
 
     def _drag_accel(
         self,
@@ -217,7 +134,7 @@ class PoweredECIDynamics:
 
         if self.modes.get("thrust", True):
             thrust = self.prop.thrust_at_altitude(h, dyn_ctx.atmosphere)
-            dir_hat = self._thrust_dir(t, r, v)
+            dir_hat = self._thrust_dir(t, r, v, m)
             a += (thrust / m) * dir_hat
 
         a += self._drag_accel(dyn_ctx, v_rel, env, m)
@@ -250,5 +167,5 @@ class PoweredECIDynamics:
             "Ma": Ma,
             "thrust": thrust,
             "accel_g": float(np.linalg.norm(self.rhs(t, y, ctx)[3:6])) / 9.80665,
-            "dir_hat": self._thrust_dir(t, r, v),
+            "dir_hat": self._thrust_dir(t, r, v, m),
         }
