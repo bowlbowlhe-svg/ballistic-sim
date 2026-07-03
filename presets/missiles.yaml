@@ -1,0 +1,42 @@
+# 弹道导弹预设 (B2 多级动力上升)
+# ============================================================================
+# 诚实声明 (HONEST DISCLAIMER):
+#   下列数值均为 **公开资料整理的代表性近似值**
+#   (placeholder / representative public-approximate), 量级与公开手册一致但
+#   **非官方实测**。弹头阻力用单体弹丸 BC 模型 (G1/G7), 对带尾翼 / 大长细比
+#   导弹上升段并非高保真气动; 不可宣称工程级精度 (精确射程属 B3/B4)。
+#   本文件与 projectiles.yaml (火炮单体弹丸) schema 完全异构, 由
+#   ballistic_sim.presets 独立加载, 互不干扰。
+# ============================================================================
+
+launch_sites:
+  SITE_A: {lat: 39.9, lon: 116.0, alt: 50.0}
+
+missiles:
+  SRBM_600:
+    name: "2级近程弹道导弹 (公开近似教学值)"
+    launch_site: SITE_A
+    payload_mass: 650.0
+    payload_diameter_m: 0.65        # 再入弹头等效弹丸直径 (阻力用)
+    payload_drag: G1
+    # kick_deg=15: 开环重力转弯倾角 (人工调参), 使全程射程落 SRBM 量级窗口
+    # (~554 km @ 该配置); 见模块诚实声明, 精确射程属 B3/B4。
+    guidance: {azimuth_deg: 90.0, t_pitchover: 8.0, kick_deg: 15.0, t_kick_end: 30.0}
+    stages:
+      - {name: S1, thrust_vac: 420.0e3, thrust_sl: 360.0e3, isp_vac: 245.0, m_prop: 6800.0, m_dry: 1300.0, diameter_m: 0.88, drag: G1}
+      - {name: S2, thrust_vac: 90.0e3,  thrust_sl: 70.0e3,  isp_vac: 265.0, m_prop: 2000.0, m_dry: 480.0,  diameter_m: 0.65, drag: G1}
+    source: "placeholder/公开近似 (Scud/M族量级圆整教学值, 非官方实测)"
+
+  MRBM_1500:
+    name: "2级中程弹道导弹 (公开近似教学值)"
+    launch_site: SITE_A
+    payload_mass: 700.0
+    payload_diameter_m: 0.70
+    payload_drag: G1
+    # kick_deg=18: 开环重力转弯倾角 (人工调参), 使全程射程落 MRBM 量级窗口
+    # (~1257 km @ 该配置); 见模块诚实声明, 精确射程属 B3/B4。
+    guidance: {azimuth_deg: 90.0, t_pitchover: 10.0, kick_deg: 18.0, t_kick_end: 35.0}
+    stages:
+      - {name: S1, thrust_vac: 600.0e3, thrust_sl: 520.0e3, isp_vac: 255.0, m_prop: 12500.0, m_dry: 1900.0, diameter_m: 1.10, drag: G1}
+      - {name: S2, thrust_vac: 140.0e3, thrust_sl: 120.0e3, isp_vac: 282.0, m_prop: 4200.0,  m_dry: 750.0,  diameter_m: 0.80, drag: G1}
+    source: "placeholder/公开近似 (量级圆整教学值, 非官方实测)"

@@ -1,0 +1,188 @@
+============================= test session starts =============================
+platform win32 -- Python 3.10.11, pytest-9.0.2, pluggy-1.6.0 -- C:\Users\bowlb\AppData\Local\Programs\Python\Python310\python.exe
+cachedir: .pytest_cache
+metadata: {'Python': '3.10.11', 'Platform': 'Windows-10-10.0.26200-SP0', 'Packages': {'pytest': '9.0.2', 'pluggy': '1.6.0'}, 'Plugins': {'anyio': '4.13.0', 'base-url': '2.1.0', 'cov': '7.1.0', 'html': '4.2.0', 'metadata': '3.1.1', 'playwright': '0.7.2', 'xdist': '3.8.0'}, 'Base URL': ''}
+rootdir: D:\程序\弹道模拟程序
+configfile: pyproject.toml
+plugins: anyio-4.13.0, base-url-2.1.0, cov-7.1.0, html-4.2.0, metadata-3.1.1, playwright-0.7.2, xdist-3.8.0
+collecting ... collected 106 items
+
+tests/guidance/test_firecontrol.py::test_m107_firecontrol_latlon[39.9-0.05] PASSED [  0%]
+tests/guidance/test_firecontrol.py::test_m107_firecontrol_latlon[39.9-0.1] PASSED [  1%]
+tests/guidance/test_firecontrol.py::test_m107_firecontrol_latlon[39.9-0.15] PASSED [  2%]
+tests/guidance/test_firecontrol.py::test_m107_firecontrol_returns_reasonable_qe_az PASSED [  3%]
+tests/guidance/test_open_loop.py::test_local_up_normalizes PASSED        [  4%]
+tests/guidance/test_open_loop.py::test_flight_path_angle_horizontal PASSED [  5%]
+tests/guidance/test_open_loop.py::test_flight_path_angle_vertical_up PASSED [  6%]
+tests/guidance/test_open_loop.py::test_local_horizontal_in_vertical_plane PASSED [  7%]
+tests/guidance/test_open_loop.py::test_thrust_dir_vertical_phase PASSED  [  8%]
+tests/guidance/test_open_loop.py::test_thrust_dir_pitchover_interpolates PASSED [  9%]
+tests/guidance/test_open_loop.py::test_thrust_dir_gravity_turn_follows_velocity PASSED [ 10%]
+tests/guidance/test_open_loop.py::test_thrust_dir_upperstage_linear_pitch PASSED [ 11%]
+tests/models/test_aerodynamics.py::test_g1_cd_magnitude[0.5-0.2557] PASSED [ 12%]
+tests/models/test_aerodynamics.py::test_g1_cd_magnitude[1.0-0.3667] PASSED [ 13%]
+tests/models/test_aerodynamics.py::test_g1_cd_magnitude[2.0-0.3544] PASSED [ 14%]
+tests/models/test_aerodynamics.py::test_g1_cd_magnitude[3.0-0.2742] PASSED [ 15%]
+tests/models/test_aerodynamics.py::test_g7_cd_magnitude[0.5-0.1197] PASSED [ 16%]
+tests/models/test_aerodynamics.py::test_g7_cd_magnitude[1.0-0.281] PASSED [ 16%]
+tests/models/test_aerodynamics.py::test_g7_cd_magnitude[2.0-0.1916] PASSED [ 17%]
+tests/models/test_aerodynamics.py::test_g7_cd_magnitude[3.0-0.1602] PASSED [ 18%]
+tests/models/test_aerodynamics.py::test_cd_mach_pchip_monotonic PASSED   [ 19%]
+tests/models/test_aerodynamics.py::test_custom_drag_table PASSED         [ 20%]
+tests/models/test_atmosphere.py::test_sea_level_properties PASSED        [ 21%]
+tests/models/test_atmosphere.py::test_isa_table_accuracy[0.0] PASSED     [ 22%]
+tests/models/test_atmosphere.py::test_isa_table_accuracy[11000.0] PASSED [ 23%]
+tests/models/test_atmosphere.py::test_isa_table_accuracy[20000.0] PASSED [ 24%]
+tests/models/test_atmosphere.py::test_isa_table_accuracy[32000.0] PASSED [ 25%]
+tests/models/test_atmosphere.py::test_isa_table_accuracy[47000.0] PASSED [ 26%]
+tests/models/test_atmosphere.py::test_isa_table_accuracy[50000.0] PASSED [ 27%]
+tests/models/test_atmosphere.py::test_isa_table_accuracy[71000.0] PASSED [ 28%]
+tests/models/test_atmosphere.py::test_isa_table_accuracy[86000.0] PASSED [ 29%]
+tests/models/test_atmosphere.py::test_upper_extension_continuity PASSED  [ 30%]
+tests/models/test_atmosphere.py::test_upper_extension_monotonic_decay PASSED [ 31%]
+tests/models/test_atmosphere.py::test_sound_speed_sea_level PASSED       [ 32%]
+tests/models/test_atmosphere.py::test_factory_null PASSED                [ 33%]
+tests/models/test_gravity.py::test_sea_level_gravity_magnitude PASSED    [ 33%]
+tests/models/test_gravity.py::test_gravity_pointmass_at_equator PASSED   [ 34%]
+tests/models/test_gravity.py::test_j2_vs_pointmass_low_orbit PASSED      [ 35%]
+tests/models/test_gravity.py::test_gravity_points_to_earth_center PASSED [ 36%]
+tests/models/test_gravity.py::test_gravity_zero_near_center PASSED       [ 37%]
+tests/models/test_terrain.py::test_procedural_terrain_reproducible_with_seed PASSED [ 38%]
+tests/models/test_terrain.py::test_terrain_cache_returns_same_value PASSED [ 39%]
+tests/models/test_terrain.py::test_two_stage_consistent_with_direct_query PASSED [ 40%]
+tests/models/test_terrain.py::test_null_terrain_returns_zero PASSED      [ 41%]
+tests/models/test_wind.py::test_uniform_wind_returns_set_values PASSED   [ 42%]
+tests/models/test_wind.py::test_uniform_wind_with_gradient PASSED        [ 43%]
+tests/models/test_wind.py::test_logarithmic_wind_increases_with_height PASSED [ 44%]
+tests/models/test_wind.py::test_power_law_wind_increases_with_height PASSED [ 45%]
+tests/models/test_wind.py::test_dryden_gust_statistics PASSED            [ 46%]
+tests/phases/test_events.py::test_baseline_impact_detection PASSED       [ 47%]
+tests/phases/test_events.py::test_baseline_apogee_detection PASSED       [ 48%]
+tests/phases/test_events.py::test_baseline_propellant_depletion_cz2f PASSED [ 49%]
+tests/phases/test_events.py::test_baseline_target_distance_detection PASSED [ 50%]
+tests/phases/test_events.py::test_event_api_impact PASSED                [ 50%]
+tests/phases/test_events.py::test_event_api_apogee PASSED                [ 51%]
+tests/phases/test_events.py::test_event_api_propellant_depletion PASSED  [ 52%]
+tests/phases/test_events.py::test_event_api_target_distance PASSED       [ 53%]
+tests/test_cli.py::test_cli_projectile_generates_png PASSED              [ 54%]
+tests/test_cli.py::test_cli_rocket_generates_png PASSED                  [ 55%]
+tests/test_cli.py::test_cli_no_viz_does_not_generate_png PASSED          [ 56%]
+tests/test_frames.py::test_ecef_to_eci_and_back PASSED                   [ 57%]
+tests/test_frames.py::test_ecef_to_enu_and_back PASSED                   [ 58%]
+tests/test_frames.py::test_eci_to_enu_and_back PASSED                    [ 59%]
+tests/test_frames.py::test_geodetic_ecef_round_trip[0.0-0.0-0.0] PASSED  [ 60%]
+tests/test_frames.py::test_geodetic_ecef_round_trip[89.999-45.0-100.0] PASSED [ 61%]
+tests/test_frames.py::test_geodetic_ecef_round_trip[-89.999-123.0-100.0] PASSED [ 62%]
+tests/test_frames.py::test_geodetic_ecef_round_trip[45.0-116.0-500.0] PASSED [ 63%]
+tests/test_icbm.py::test_icbm_end_to_end PASSED                          [ 64%]
+tests/test_import_guards.py::test_guard_raises_friendly_import_error[require_weather-cfgrib] PASSED [ 65%]
+tests/test_import_guards.py::test_guard_raises_friendly_import_error[require_netcdf4-netCDF4] PASSED [ 66%]
+tests/test_import_guards.py::test_guard_raises_friendly_import_error[require_rasterio-rasterio] PASSED [ 66%]
+tests/test_import_guards.py::test_guard_raises_friendly_import_error[require_shapely-shapely] PASSED [ 67%]
+tests/test_import_guards.py::test_guard_raises_friendly_import_error[require_requests-requests] PASSED [ 68%]
+tests/test_import_guards.py::test_guard_raises_friendly_import_error[require_srtm-srtm] PASSED [ 69%]
+tests/test_import_guards.py::test_guard_raises_friendly_import_error[require_gpu-cupy] PASSED [ 70%]
+tests/test_import_guards.py::test_guard_raises_friendly_import_error[require_cupy-cupy] PASSED [ 71%]
+tests/test_import_guards.py::test_guard_raises_friendly_import_error[require_fastapi-fastapi] PASSED [ 72%]
+tests/test_import_guards.py::test_guard_raises_friendly_import_error[require_uvicorn-uvicorn] PASSED [ 73%]
+tests/test_import_guards.py::test_guard_raises_friendly_import_error[<lambda>-PIL] PASSED [ 74%]
+tests/test_import_guards.py::test_try_import_unknown_module PASSED       [ 75%]
+tests/test_mvp.py::test_mvp_m107 PASSED                                  [ 76%]
+tests/test_mvp.py::test_mvp_cz2f PASSED                                  [ 77%]
+tests/test_state_switch.py::test_allowed_6dof_to_3dof_eci PASSED         [ 78%]
+tests/test_state_switch.py::test_allowed_3dof_eci_to_3dof_enu PASSED     [ 79%]
+tests/test_state_switch.py::test_allowed_3dof_enu_to_mpm PASSED          [ 80%]
+tests/test_state_switch.py::test_allowed_3dof_eci_to_mpm PASSED          [ 81%]
+tests/test_state_switch.py::test_allowed_6dof_to_mpm PASSED              [ 82%]
+tests/test_state_switch.py::test_forbidden_mpm_to_3dof_eci PASSED        [ 83%]
+tests/test_state_switch.py::test_forbidden_6dof_enu_to_3dof_eci PASSED   [ 83%]
+tests/test_state_switch.py::test_forbidden_3dof_to_6dof_by_default PASSED [ 84%]
+tests/test_state_switch.py::test_eci_enu_eci_round_trip PASSED           [ 85%]
+tests/test_state_switch.py::test_dimension_change_preserves_rvm PASSED   [ 86%]
+tests/test_state_switch.py::test_3dof_enu_to_mpm_preserves_speed PASSED  [ 87%]
+tests/test_state_switch.py::test_mpm_adds_spin_and_alpha PASSED          [ 88%]
+tests/test_state_switch.py::test_6dof_spin_carried_to_mpm PASSED         [ 89%]
+tests/test_state_switch.py::test_real_mpm_state_has_spin_alpha PASSED    [ 90%]
+tests/test_state_switch.py::test_real_point_mass_frames PASSED           [ 91%]
+tests/viz/test_animation.py::test_animate_trajectory_gif PASSED          [ 92%]
+tests/viz/test_viz_smoke.py::test_viz_smoke[ballistic_sim.viz.trajectory3d-_atmospheric_result] PASSED [ 93%]
+tests/viz/test_viz_smoke.py::test_viz_smoke[ballistic_sim.viz.groundtrack-_atmospheric_result] PASSED [ 94%]
+tests/viz/test_viz_smoke.py::test_viz_smoke[ballistic_sim.viz.profile-_atmospheric_result] PASSED [ 95%]
+tests/viz/test_viz_smoke.py::test_viz_smoke[ballistic_sim.viz.wind_plot-_atmospheric_result] PASSED [ 96%]
+tests/viz/test_viz_smoke.py::test_viz_smoke[ballistic_sim.viz.globe3d-_exo_result] PASSED [ 97%]
+tests/viz/test_viz_smoke.py::test_viz_smoke[ballistic_sim.viz.orbit_insertion-_exo_result] PASSED [ 98%]
+tests/viz/test_viz_smoke.py::test_viz_smoke[ballistic_sim.viz.dvbudget-_exo_result] SKIPPED [ 99%]
+tests/viz/test_viz_smoke.py::test_viz_smoke[ballistic_sim.viz.reentry-_exo_result] PASSED [100%]<unknown>:1: DeprecationWarning: invalid escape sequence '\P'
+D:\程序\弹道模拟程序\ballistic_sim\dynamics\mpm.py:1: DeprecationWarning: invalid escape sequence '\P'
+  """修正质点模型 (Modified Point Mass, MPM)。
+<unknown>:1: DeprecationWarning: invalid escape sequence '\P'
+D:\程序\弹道模拟程序\ballistic_sim\guidance\firecontrol.py:1: DeprecationWarning: invalid escape sequence '\P'
+  """火控反解：由目标位置反推射角 (qe) 与方位角 (az)。
+<unknown>:1: DeprecationWarning: invalid escape sequence '\P'
+D:\程序\弹道模拟程序\ballistic_sim\dynamics\mpm.py:1: DeprecationWarning: invalid escape sequence '\P'
+  """修正质点模型 (Modified Point Mass, MPM)。
+<unknown>:1: DeprecationWarning: invalid escape sequence '\P'
+D:\程序\弹道模拟程序\ballistic_sim\guidance\firecontrol.py:1: DeprecationWarning: invalid escape sequence '\P'
+  """火控反解：由目标位置反推射角 (qe) 与方位角 (az)。
+
+
+=============================== tests coverage ================================
+______________ coverage: platform win32, python 3.10.11-final-0 _______________
+
+Name                                        Stmts   Miss Branch BrPart  Cover   Missing
+---------------------------------------------------------------------------------------
+ballistic_sim\__init__.py                       2      0      0      0   100%
+ballistic_sim\cli.py                          291    264     44      0     8%   47-48, 53-59, 63-81, 85-94, 98-100, 104-113, 117-124, 129-244, 249-346, 350-360, 364-405, 409-529, 533-564
+ballistic_sim\config.py                        78      7     10      1    86%   123, 154-174
+ballistic_sim\constants.py                     39      0      0      0   100%
+ballistic_sim\dynamics\__init__.py              6      0      0      0   100%
+ballistic_sim\dynamics\common.py               64     11      8      3    78%   40, 64, 77-85, 103
+ballistic_sim\dynamics\mpm.py                 132     12     20      9    85%   70->74, 85, 126->129, 148, 162, 169->173, 176->184, 186->204, 206-224
+ballistic_sim\dynamics\point_mass.py           94     76     24      0    15%   50-62, 79-91, 95-140, 144-161
+ballistic_sim\dynamics\powered_eci.py          92     17     16      3    80%   96->99, 108, 133, 145-162
+ballistic_sim\frames.py                       104      5      4      2    94%   83-86, 103
+ballistic_sim\guidance\__init__.py              2      0      0      0   100%
+ballistic_sim\guidance\circularization.py      43     43      4      0     0%   7-124
+ballistic_sim\guidance\control.py              45     45      8      0     0%   7-103
+ballistic_sim\guidance\firecontrol.py          97     23     14      5    75%   35-36, 38, 61, 72-82, 127, 138, 144, 210-220
+ballistic_sim\guidance\open_loop.py           123     26     40     13    71%   40, 84, 98->101, 119-123, 128, 132->136, 134->136, 137-141, 156-167, 179->182, 184, 186, 204-205, 210
+ballistic_sim\guidance\peg.py                 242    242     54      0     0%   7-385
+ballistic_sim\guidance\targeting.py            40     40      8      0     0%   7-165
+ballistic_sim\models\__init__.py                6      0      0      0   100%
+ballistic_sim\models\aerodynamics.py          104     27     16      5    70%   36, 42, 88, 102, 112, 327, 332, 344-345, 350, 355, 365, 370, 388-395, 420, 422, 425-427, 432
+ballistic_sim\models\atmosphere.py            202     53     42      4    70%   71, 75, 79, 83, 96, 99, 141-160, 214-222, 280-282, 293, 383, 395-411
+ballistic_sim\models\gravity.py                59     12     16      6    73%   39, 48, 57, 106, 109, 130-135, 158-161
+ballistic_sim\models\propulsion.py             23      0      0      0   100%
+ballistic_sim\models\terrain.py               303    176     74      4    35%   73, 97, 104, 136-139, 145, 149-156, 175, 181, 191, 194, 197, 206-207, 210, 250-251, 258-261, 266-277, 295-305, 309, 313, 317, 321, 330-333, 337-376, 379-381, 388-396, 400-408, 412-416, 420-434, 442-463, 468-469, 474-475, 490, 518-524, 528-533, 537-540, 544, 570-595
+ballistic_sim\models\wind.py                  182     75     40      3    51%   56, 136-142, 145-146, 163-166, 169-180, 223-224, 267-268, 277-281, 298-302, 305-309, 312-320, 325-326, 345, 348-360, 372-382
+ballistic_sim\phases\__init__.py                9      0      0      0   100%
+ballistic_sim\phases\base.py                   40      4      8      2    88%   71, 74, 92, 97
+ballistic_sim\phases\builder.py                26      9      4      1    60%   19-21, 62-83
+ballistic_sim\phases\coasting.py               23      1      8      1    94%   23
+ballistic_sim\phases\events.py                 70     26     12      2    59%   58-60, 79-84, 111-128, 140, 155-158
+ballistic_sim\phases\powered.py                32      0     10      1    98%   26->exit
+ballistic_sim\phases\reentry.py                21      1      4      1    92%   26
+ballistic_sim\phases\terminal.py               26      6      6      2    69%   26->exit, 28, 39-42, 46
+ballistic_sim\presets\__init__.py               6      0      0      0   100%
+ballistic_sim\presets\loader.py                64     20     16      5    64%   25, 38-39, 52, 58-68, 76, 82, 87, 92, 105, 108->106
+ballistic_sim\presets\missiles.py              72     51      4      0    28%   34-40, 44-51, 55-57, 62-84, 89-94, 130-187
+ballistic_sim\presets\projectiles.py           30     10      0      0    67%   67-71, 100-103, 122
+ballistic_sim\presets\rockets.py              103      2      4      2    96%   53, 179
+ballistic_sim\simulator.py                    116      9     34     10    87%   42->45, 50, 96->186, 134-135, 148-149, 153->156, 169, 183, 203, 213
+ballistic_sim\state_switch.py                  85      5     26      5    91%   39, 47, 112, 135, 179
+ballistic_sim\utils\__init__.py                 2      0      0      0   100%
+ballistic_sim\utils\optional_imports.py        28      0      0      0   100%
+ballistic_sim\viz\__init__.py                  74     22     22      7    66%   19, 25, 36, 47->49, 66-74, 93, 96, 101-104, 111-114, 119-123
+ballistic_sim\viz\animation.py                 51      5      8      3    83%   43-46, 57, 59
+ballistic_sim\viz\dvbudget.py                  36     28      6      0    19%   15-19, 24-63
+ballistic_sim\viz\globe3d.py                   28      0      0      0   100%
+ballistic_sim\viz\groundtrack.py               34     13      0      0    62%   32-49
+ballistic_sim\viz\orbit_insertion.py           39      0      0      0   100%
+ballistic_sim\viz\profile.py                   39     15      0      0    62%   37-51
+ballistic_sim\viz\reentry.py                   34      0      0      0   100%
+ballistic_sim\viz\trajectory3d.py              41     20      0      0    51%   32-53
+ballistic_sim\viz\wind_plot.py                 45     11      0      0    76%   25-35
+---------------------------------------------------------------------------------------
+TOTAL                                        3547   1412    614    100    56%
+Required test coverage of 50.0% reached. Total coverage: 56.26%
+======================= 105 passed, 1 skipped in 28.78s =======================
