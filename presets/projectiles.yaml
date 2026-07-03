@@ -1,0 +1,150 @@
+# 弹种预设参数 (从外弹道方程迁移)
+# 说明：
+# - m/d/v0/最大射程为公开实测值
+# - i（弹形系数）由射程反求标定（45°匹配公开最大射程）
+# - Ix ≈ 0.555·m·(d/2)^2, It ≈ 8.5·Ix 为按 M107 实测比例估算
+# - 缠距为该类火炮典型值
+# - 气动系数表为代表性曲线
+
+aero_default: &aero_default
+  ma: [0.0, 0.8, 0.9, 1.0, 1.2, 1.5, 2.0, 2.5, 3.0]
+  CMa: [2.8, 3.0, 3.6, 4.5, 4.3, 4.0, 3.7, 3.5, 3.3]
+  CLa: [1.40, 1.45, 1.55, 1.75, 1.95, 1.90, 1.80, 1.72, 1.65]
+  Clp: [-0.020, -0.021, -0.022, -0.023, -0.024, -0.025, -0.026, -0.027, -0.028]
+
+presets:
+  M101:
+    name: "105mm M101 榴弹炮 (HE M1)"
+    m: 15.0
+    d: 0.105
+    i: 0.670
+    drag: G1
+    twist_cal: 20
+    Ix: 0.023
+    It: 0.20
+    v0: 472
+    theta0: 45
+    az0: 90
+    h0: 0
+    lat: 39.9
+    range_km: 11.3
+    aero: *aero_default
+
+  Mortar120:
+    name: "120mm 迫击炮 (尾翼稳定)"
+    m: 14.0
+    d: 0.120
+    i: 0.536
+    drag: G1
+    twist_cal: 100000
+    Ix: 0.028
+    It: 0.24
+    v0: 320
+    theta0: 45
+    az0: 90
+    h0: 0
+    lat: 39.9
+    range_km: 7.1
+    aero: *aero_default
+
+  D30:
+    name: "122mm D-30 榴弹炮 (OF-462)"
+    m: 21.76
+    d: 0.122
+    i: 0.844
+    drag: G1
+    twist_cal: 20
+    Ix: 0.045
+    It: 0.38
+    v0: 690
+    theta0: 45
+    az0: 90
+    h0: 0
+    lat: 39.9
+    range_km: 15.3
+    aero: *aero_default
+
+  Mk45:
+    name: "127mm Mk45 舰炮 (5/54)"
+    m: 31.75
+    d: 0.127
+    i: 0.796
+    drag: G1
+    twist_cal: 30
+    Ix: 0.071
+    It: 0.60
+    v0: 808
+    theta0: 45
+    az0: 90
+    h0: 0
+    lat: 39.9
+    range_km: 23.0
+    aero: *aero_default
+
+  M46:
+    name: "130mm M-46 加农炮 (OF-482)"
+    m: 33.5
+    d: 0.130
+    i: 0.812
+    drag: G1
+    twist_cal: 25
+    Ix: 0.0785
+    It: 0.67
+    v0: 930
+    theta0: 45
+    az0: 90
+    h0: 0
+    lat: 39.9
+    range_km: 27.5
+    aero: *aero_default
+
+  M107:
+    name: "155mm M107 榴弹炮"
+    m: 43.2
+    d: 0.155
+    i: 0.78
+    drag: G1
+    twist_cal: 20
+    Ix: 0.144
+    It: 1.22
+    v0: 684
+    theta0: 45
+    az0: 90
+    h0: 0
+    lat: 39.9
+    range_km: 18.1
+    aero: *aero_default
+
+  M795:
+    name: "155mm M795 榴弹炮"
+    m: 46.7
+    d: 0.155
+    i: 1.504
+    drag: G7
+    twist_cal: 20
+    Ix: 0.158
+    It: 1.35
+    v0: 827
+    theta0: 45
+    az0: 90
+    h0: 0
+    lat: 39.9
+    range_km: 22.5
+    aero: *aero_default
+
+  M110:
+    name: "203mm M110 榴弹炮 (M106)"
+    m: 92.53
+    d: 0.203
+    i: 0.685
+    drag: G1
+    twist_cal: 25
+    Ix: 0.529
+    It: 4.50
+    v0: 711
+    theta0: 45
+    az0: 90
+    h0: 0
+    lat: 39.9
+    range_km: 22.9
+    aero: *aero_default
