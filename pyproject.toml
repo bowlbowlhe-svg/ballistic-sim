@@ -1,0 +1,93 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ballistic-sim"
+version = "0.1.0"
+description = "Six-degree-of-freedom (6-DOF) ballistic flight simulation with modular phases, guidance, and visualization."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+authors = [
+    { name = "bowlbowlhe-svg" },
+]
+keywords = ["ballistics", "6-dof", "flight-dynamics", "rocket", "missile", "simulation"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Physics",
+]
+
+dependencies = [
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "matplotlib>=3.7",
+    "pyyaml>=6.0",
+    "pydantic>=2.0",
+]
+
+[project.optional-dependencies]
+weather = ["requests>=2.28", "netCDF4>=1.6"]
+terrain = ["rasterio>=1.3", "shapely>=2.0"]
+srtm = ["srtm.py>=0.3"]
+gpu = ["cupy-cuda11x>=12.0"]
+web = ["fastapi>=0.100", "uvicorn[standard]>=0.23"]
+anim = ["matplotlib>=3.7", "Pillow>=10.0"]
+all = [
+    "requests>=2.28",
+    "netCDF4>=1.6",
+    "rasterio>=1.3",
+    "shapely>=2.0",
+    "srtm.py>=0.3",
+    "fastapi>=0.100",
+    "uvicorn[standard]>=0.23",
+    "Pillow>=10.0",
+]
+
+[project.scripts]
+ballistic-sim = "ballistic_sim.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/bowlbowlhe-svg/ballistic-sim"
+Repository = "https://github.com/bowlbowlhe-svg/ballistic-sim"
+Issues = "https://github.com/bowlbowlhe-svg/ballistic-sim/issues"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["ballistic_sim*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "--strict-markers --disable-warnings"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "golden: tests that compare against golden reference files",
+    "divergence: tests for known 6-DOF divergence conditions",
+]
+
+[tool.coverage.run]
+source = ["ballistic_sim"]
+branch = true
+omit = [
+    "tests/*",
+    "scripts/*",
+    "*/__main__.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+]

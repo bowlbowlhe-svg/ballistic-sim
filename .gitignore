@@ -1,0 +1,61 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+env/
+ENV/
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Outputs / cache
+out/
+output/
+results/
+data/cache/
+*_cache/
+.cache/
+*.log
+
+# Media / binary artifacts
+*.mp4
+*.gif
+*.png
+*.jpg
+*.jpeg
+*.svg
+*.pdf
+
+# Geospatial / weather data
+*.hgt
+*.tif
+*.tiff
+*.grib
+*.grib2
+*.nc
+*.kml
+*.kmz
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Pytest / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Jupyter
+.ipynb_checkpoints/
