@@ -1,0 +1,87 @@
+============================= test session starts =============================
+platform win32 -- Python 3.10.11, pytest-9.0.2, pluggy-1.6.0 -- C:\Users\bowlb\AppData\Local\Programs\Python\Python310\python.exe
+cachedir: .pytest_cache
+metadata: {'Python': '3.10.11', 'Platform': 'Windows-10-10.0.26200-SP0', 'Packages': {'pytest': '9.0.2', 'pluggy': '1.6.0'}, 'Plugins': {'anyio': '4.13.0', 'base-url': '2.1.0', 'cov': '7.1.0', 'html': '4.2.0', 'metadata': '3.1.1', 'playwright': '0.7.2', 'xdist': '3.8.0'}, 'Base URL': ''}
+rootdir: D:\程序\弹道模拟程序
+configfile: pyproject.toml
+plugins: anyio-4.13.0, base-url-2.1.0, cov-7.1.0, html-4.2.0, metadata-3.1.1, playwright-0.7.2, xdist-3.8.0
+collecting ... collected 56 items
+
+tests/models/test_aerodynamics.py::test_g1_cd_magnitude[0.5-0.2557] PASSED [  1%]
+tests/models/test_aerodynamics.py::test_g1_cd_magnitude[1.0-0.3667] PASSED [  3%]
+tests/models/test_aerodynamics.py::test_g1_cd_magnitude[2.0-0.3544] PASSED [  5%]
+tests/models/test_aerodynamics.py::test_g1_cd_magnitude[3.0-0.2742] PASSED [  7%]
+tests/models/test_aerodynamics.py::test_g7_cd_magnitude[0.5-0.1197] PASSED [  8%]
+tests/models/test_aerodynamics.py::test_g7_cd_magnitude[1.0-0.281] PASSED [ 10%]
+tests/models/test_aerodynamics.py::test_g7_cd_magnitude[2.0-0.1916] PASSED [ 12%]
+tests/models/test_aerodynamics.py::test_g7_cd_magnitude[3.0-0.1602] PASSED [ 14%]
+tests/models/test_aerodynamics.py::test_cd_mach_pchip_monotonic PASSED   [ 16%]
+tests/models/test_aerodynamics.py::test_custom_drag_table PASSED         [ 17%]
+tests/models/test_atmosphere.py::test_sea_level_properties PASSED        [ 19%]
+tests/models/test_atmosphere.py::test_isa_table_accuracy[0.0] PASSED     [ 21%]
+tests/models/test_atmosphere.py::test_isa_table_accuracy[11000.0] PASSED [ 23%]
+tests/models/test_atmosphere.py::test_isa_table_accuracy[20000.0] PASSED [ 25%]
+tests/models/test_atmosphere.py::test_isa_table_accuracy[32000.0] PASSED [ 26%]
+tests/models/test_atmosphere.py::test_isa_table_accuracy[47000.0] PASSED [ 28%]
+tests/models/test_atmosphere.py::test_isa_table_accuracy[50000.0] PASSED [ 30%]
+tests/models/test_atmosphere.py::test_isa_table_accuracy[71000.0] PASSED [ 32%]
+tests/models/test_atmosphere.py::test_isa_table_accuracy[86000.0] PASSED [ 33%]
+tests/models/test_atmosphere.py::test_upper_extension_continuity PASSED  [ 35%]
+tests/models/test_atmosphere.py::test_upper_extension_monotonic_decay PASSED [ 37%]
+tests/models/test_atmosphere.py::test_sound_speed_sea_level PASSED       [ 39%]
+tests/models/test_atmosphere.py::test_factory_null PASSED                [ 41%]
+tests/models/test_gravity.py::test_sea_level_gravity_magnitude PASSED    [ 42%]
+tests/models/test_gravity.py::test_gravity_pointmass_at_equator PASSED   [ 44%]
+tests/models/test_gravity.py::test_j2_vs_pointmass_low_orbit PASSED      [ 46%]
+tests/models/test_gravity.py::test_gravity_points_to_earth_center PASSED [ 48%]
+tests/models/test_gravity.py::test_gravity_zero_near_center PASSED       [ 50%]
+tests/models/test_terrain.py::test_procedural_terrain_reproducible_with_seed PASSED [ 51%]
+tests/models/test_terrain.py::test_terrain_cache_returns_same_value PASSED [ 53%]
+tests/models/test_terrain.py::test_two_stage_consistent_with_direct_query PASSED [ 55%]
+tests/models/test_terrain.py::test_null_terrain_returns_zero PASSED      [ 57%]
+tests/models/test_wind.py::test_uniform_wind_returns_set_values PASSED   [ 58%]
+tests/models/test_wind.py::test_uniform_wind_with_gradient PASSED        [ 60%]
+tests/models/test_wind.py::test_logarithmic_wind_increases_with_height PASSED [ 62%]
+tests/models/test_wind.py::test_power_law_wind_increases_with_height PASSED [ 64%]
+tests/models/test_wind.py::test_dryden_gust_statistics PASSED            [ 66%]
+tests/test_frames.py::test_ecef_to_eci_and_back PASSED                   [ 67%]
+tests/test_frames.py::test_ecef_to_enu_and_back PASSED                   [ 69%]
+tests/test_frames.py::test_eci_to_enu_and_back PASSED                    [ 71%]
+tests/test_frames.py::test_geodetic_ecef_round_trip[0.0-0.0-0.0] PASSED  [ 73%]
+tests/test_frames.py::test_geodetic_ecef_round_trip[89.999-45.0-100.0] PASSED [ 75%]
+tests/test_frames.py::test_geodetic_ecef_round_trip[-89.999-123.0-100.0] PASSED [ 76%]
+tests/test_frames.py::test_geodetic_ecef_round_trip[45.0-116.0-500.0] PASSED [ 78%]
+tests/test_import_guards.py::test_guard_raises_friendly_import_error[require_weather-cfgrib] PASSED [ 80%]
+tests/test_import_guards.py::test_guard_raises_friendly_import_error[require_netcdf4-netCDF4] PASSED [ 82%]
+tests/test_import_guards.py::test_guard_raises_friendly_import_error[require_rasterio-rasterio] PASSED [ 83%]
+tests/test_import_guards.py::test_guard_raises_friendly_import_error[require_shapely-shapely] PASSED [ 85%]
+tests/test_import_guards.py::test_guard_raises_friendly_import_error[require_requests-requests] PASSED [ 87%]
+tests/test_import_guards.py::test_guard_raises_friendly_import_error[require_srtm-srtm] PASSED [ 89%]
+tests/test_import_guards.py::test_guard_raises_friendly_import_error[require_gpu-cupy] PASSED [ 91%]
+tests/test_import_guards.py::test_guard_raises_friendly_import_error[require_cupy-cupy] PASSED [ 92%]
+tests/test_import_guards.py::test_guard_raises_friendly_import_error[require_fastapi-fastapi] PASSED [ 94%]
+tests/test_import_guards.py::test_guard_raises_friendly_import_error[require_uvicorn-uvicorn] PASSED [ 96%]
+tests/test_import_guards.py::test_guard_raises_friendly_import_error[<lambda>-PIL] PASSED [ 98%]
+tests/test_import_guards.py::test_try_import_unknown_module PASSED       [100%]
+
+=============================== tests coverage ================================
+______________ coverage: platform win32, python 3.10.11-final-0 _______________
+
+Name                                      Stmts   Miss Branch BrPart  Cover   Missing
+-------------------------------------------------------------------------------------
+ballistic_sim\__init__.py                     2      0      0      0   100%
+ballistic_sim\config.py                      78     78     10      0     0%   3-174
+ballistic_sim\constants.py                   39      0      0      0   100%
+ballistic_sim\frames.py                      90      9      4      2    88%   81-84, 101, 176-179
+ballistic_sim\models\__init__.py              6      0      0      0   100%
+ballistic_sim\models\aerodynamics.py        104     37     16      2    58%   36, 42, 88, 102, 112, 265, 321-322, 327, 332, 344-345, 350, 355, 365, 370, 388-395, 416-427, 432
+ballistic_sim\models\atmosphere.py          202     55     42      4    68%   71, 75, 79, 83, 96, 99, 141-160, 214-222, 280-282, 293, 381-383, 395-411
+ballistic_sim\models\gravity.py              59     12     16      6    73%   39, 48, 57, 106, 109, 130-135, 158-161
+ballistic_sim\models\terrain.py             303    176     74      4    35%   73, 97, 104, 136-139, 145, 149-156, 175, 181, 191, 194, 197, 206-207, 210, 250-251, 258-261, 266-277, 295-305, 309, 313, 317, 321, 330-333, 337-376, 379-381, 388-396, 400-408, 412-416, 420-434, 442-463, 468-469, 474-475, 490, 518-524, 528-533, 537-540, 544, 570-595
+ballistic_sim\models\wind.py                182     80     40      1    48%   43, 56, 136-142, 145-146, 163-166, 169-180, 223-224, 267-268, 277-281, 298-302, 305-309, 312-320, 325-326, 343-360, 372-382
+ballistic_sim\utils\__init__.py               2      0      0      0   100%
+ballistic_sim\utils\optional_imports.py      28      0      0      0   100%
+-------------------------------------------------------------------------------------
+TOTAL                                      1095    447    202     19    53%
+Required test coverage of 50.0% reached. Total coverage: 53.12%
+============================= 56 passed in 1.16s ==============================

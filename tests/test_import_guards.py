@@ -7,10 +7,15 @@ import sys
 import pytest
 
 from ballistic_sim.utils.optional_imports import (
+    require_cupy,
     require_fastapi,
     require_gpu,
+    require_netcdf4,
     require_rasterio,
     require_requests,
+    require_shapely,
+    require_srtm,
+    require_uvicorn,
     require_weather,
     try_import,
 )
@@ -19,19 +24,27 @@ from ballistic_sim.utils.optional_imports import (
 @pytest.mark.parametrize(
     "call, module",
     [
+        # weather
         (require_weather, "cfgrib"),
+        (require_netcdf4, "netCDF4"),
+        # terrain
         (require_rasterio, "rasterio"),
+        (require_shapely, "shapely"),
+        # srtm
         (require_requests, "requests"),
+        (require_srtm, "srtm"),
+        # gpu
         (require_gpu, "cupy"),
+        (require_cupy, "cupy"),
+        # web
         (require_fastapi, "fastapi"),
+        (require_uvicorn, "uvicorn"),
+        # anim
         (lambda: try_import("PIL", "anim"), "PIL"),
-        (lambda: try_import("uvicorn", "web"), "uvicorn"),
     ],
 )
 def test_guard_raises_friendly_import_error(call, module, monkeypatch) -> None:
     """When an optional dependency is missing the guard must raise ImportError."""
-    # Setting sys.modules[name] = None makes import behave as if the module
-    # is not installed (ModuleNotFoundError).
     monkeypatch.setitem(sys.modules, module, None)
 
     with pytest.raises(ImportError) as excinfo:
