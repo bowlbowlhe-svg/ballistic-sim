@@ -66,6 +66,10 @@ class AtmosphereState:
 class AtmosphereModel(Protocol):
     """大气模型统一接口。"""
 
+    def __call__(self, h: float) -> AtmosphereState:
+        """返回高度 h (m) 处的大气状态。"""
+        ...
+
     def density(self, h: float) -> float:
         """返回高度 h (m) 处的大气密度 (kg/m^3)。"""
         ...
@@ -85,6 +89,19 @@ class AtmosphereModel(Protocol):
 
 class NullAtmosphere:
     """真空大气（快速模式），密度/压强恒为 0，温度取海平面 ISA 值。"""
+
+    def __call__(self, h: float) -> AtmosphereState:
+        c = float(np.sqrt(GAMMA_AIR * R_AIR * T0_ISA))
+        return AtmosphereState(
+            h=float(h),
+            H=float(h),
+            T=float(T0_ISA),
+            p=0.0,
+            rho=0.0,
+            c=c,
+            mu=0.0,
+            q=0.0,
+        )
 
     def density(self, h: float) -> float:
         return 0.0

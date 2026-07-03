@@ -15,7 +15,6 @@ import pytest
 
 from ballistic_sim.constants import WGS84_A
 from ballistic_sim.dynamics.common import rv_to_oe
-from ballistic_sim.frames import eci_to_ecef
 from ballistic_sim.presets import cz2f_config, cz2f_phases, m107_config
 from ballistic_sim.simulator import SimResult, simulate
 

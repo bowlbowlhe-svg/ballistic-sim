@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 
@@ -44,7 +44,7 @@ class PoweredPhase(Phase):
                 rec["name"] = "落地保护"
         return records
 
-    def final_state(self, sol: OdeResult) -> np.ndarray:
+    def final_state(self, sol) -> np.ndarray:
         y = super().final_state(sol)
         if self.m_after_separation is not None:
             y = y.copy()

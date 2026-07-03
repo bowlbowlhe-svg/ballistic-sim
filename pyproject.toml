@@ -104,9 +104,9 @@ omit = [
 # should be checked in CI via ``coverage report --include="ballistic_sim/dynamics/*"``
 # etc., or by reviewing the HTML report.
 [tool.coverage.report]
-# Stage 1 目标：物理模型层覆盖 ≥80%；整体覆盖随阶段递增，Stage 5 达到 ≥80%。
-# 当前 Stage 1 整体暂设为 50，后续随 dynamics/simulator 完善逐步提高。
-fail_under = 50
+# Stage 5 目标：整体覆盖 ≥80%，核心物理模块（dynamics/models/guidance）≥90%。
+# 当前测试套件已达成整体 ≥85%，将全局阈值固定为 80。
+fail_under = 80
 exclude_lines = [
     "pragma: no cover",
     "def __repr__",

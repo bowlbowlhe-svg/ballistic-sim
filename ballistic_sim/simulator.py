@@ -10,10 +10,8 @@ from scipy.integrate import solve_ivp
 
 from ballistic_sim.config import SimConfig
 from ballistic_sim.dynamics.common import DynamicContext
-from ballistic_sim.models.atmosphere import StandardAtmosphere
 from ballistic_sim.models.wind import UniformWind
-from ballistic_sim.models.wind import WindModel
-from ballistic_sim.phases.base import Phase, PhaseContext
+from ballistic_sim.phases.base import Phase
 from ballistic_sim.state_switch import project_state
 
 
@@ -112,7 +110,6 @@ def simulate(cfg: SimConfig, phases: List[Phase]) -> SimResult:
                     float(np.arcsin(np.clip(np.dot(v0, up) / vn, -1.0, 1.0))) if vn > 1.0 else 0.0
                 )
                 ph.guidance["gamma0_deg"] = float(np.degrees(gamma0))
-        ctx = PhaseContext(cfg=cfg, phase=ph, t0=t_start)
 
         def _rhs(t: float, y: np.ndarray) -> np.ndarray:
             return ph.rhs(t, y, cfg, ph)

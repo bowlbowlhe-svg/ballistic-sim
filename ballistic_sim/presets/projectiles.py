@@ -6,7 +6,6 @@
 
 from __future__ import annotations
 
-import numpy as np
 
 from ballistic_sim.config import (
     EnvironmentConfig,
@@ -26,9 +25,7 @@ from ballistic_sim.presets.loader import get_projectile, list_projectiles, make_
 def _projectile_config_from_preset(name: str) -> SimConfig:
     """由 YAML 预设构造 SimConfig。"""
     p = get_projectile(name)
-    aero = make_aero_tables(p)
-    drag_name = p.get("drag", "G1")
-    drag_law = DRAG_G7 if drag_name == "G7" else DRAG_G1
+    make_aero_tables(p)
     return SimConfig(
         mission="projectile",
         vehicle=VehicleConfig(

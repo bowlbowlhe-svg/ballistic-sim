@@ -1,4 +1,4 @@
-"""火控反解：由目标位置反推射角 (qe) 与方位角 (az)。
+r"""火控反解：由目标位置反推射角 (qe) 与方位角 (az)。
 
 来源：``D:\Pycharm\游戏与兴趣\外弹道方程\ballistics\firecontrol.py``。
 迁移到统一平台后，直接操作 :class:`ballistic_sim.config.SimConfig` 与

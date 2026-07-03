@@ -42,9 +42,9 @@ class WindState:
         """返回 (3,) numpy 数组。"""
         return np.array([self.e, self.n, self.u], dtype=float)
 
-    def __array__(self):
+    def __array__(self, dtype=None):
         """支持 numpy 转换，使 np.array([state, ...]) 得到 (N, 3) 数组。"""
-        return np.array([self.e, self.n, self.u], dtype=float)
+        return np.array([self.e, self.n, self.u], dtype=float if dtype is None else dtype)
 
 
 @runtime_checkable

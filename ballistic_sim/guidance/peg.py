@@ -6,12 +6,12 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Callable, Dict, Optional
 
 import numpy as np
 
-from ballistic_sim.constants import DEG2RAD, G0_STANDARD, GM_EARTH, WGS84_A
+from ballistic_sim.constants import G0_STANDARD, GM_EARTH, WGS84_A
 
 __all__ = [
     "PegState",
@@ -323,7 +323,7 @@ def make_orbit_reached_event(target: Dict[str, Any], mu: float = GM_EARTH) -> Ca
     tt = make_target_terminal(target, mu=mu)
     a_T = tt["a_T_m"]
     energy_target = -mu / (2.0 * a_T)
-    ev_state = {"t0": None, "entry_reached": False}
+    ev_state: Dict[str, Any] = {"t0": None, "entry_reached": False}
 
     def ev_orbit_reached(t: float, Y: np.ndarray) -> float:
         r = np.asarray(Y[0:3], dtype=float)
@@ -349,7 +349,7 @@ def make_orbit_reached_event(target: Dict[str, Any], mu: float = GM_EARTH) -> Ca
 def make_apogee_circularization_event(r_apo_m: float, mu: float = GM_EARTH) -> Callable:
     """远地点圆化 γ 过零关机事件（含水平速度门控）。"""
     float(r_apo_m)
-    ev_state = {"seen": False, "t_cut": None}
+    ev_state: Dict[str, Any] = {"seen": False, "t_cut": None}
 
     def ev_apo_circ(t: float, Y: np.ndarray) -> float:
         if ev_state["t_cut"] is not None:

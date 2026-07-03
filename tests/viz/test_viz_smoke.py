@@ -10,14 +10,13 @@ from pathlib import Path
 from typing import Any, Callable
 
 import matplotlib
-import numpy as np
 import pytest
 from matplotlib.figure import Figure
 
 matplotlib.use("Agg")
 
-from ballistic_sim.presets import cz2f_config, cz2f_phases, m107_config
-from ballistic_sim.simulator import SimResult, simulate
+from ballistic_sim.presets import cz2f_config, cz2f_phases, m107_config  # noqa: E402
+from ballistic_sim.simulator import SimResult, simulate  # noqa: E402
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 

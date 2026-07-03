@@ -11,8 +11,8 @@ import pytest
 
 matplotlib.use("Agg")
 
-from ballistic_sim.presets import m107_config
-from ballistic_sim.simulator import SimResult, simulate
+from ballistic_sim.presets import m107_config  # noqa: E402
+from ballistic_sim.simulator import SimResult, simulate  # noqa: E402
 
 
 def _atmospheric_result() -> SimResult:

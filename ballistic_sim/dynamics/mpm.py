@@ -1,4 +1,4 @@
-"""修正质点模型 (Modified Point Mass, MPM)。
+r"""修正质点模型 (Modified Point Mass, MPM)。
 
 来源：``D:\Pycharm\游戏与兴趣\外弹道方程\ballistics\mpm.py``。
 迁移到统一平台后，注入 ``ballistic_sim.models.atmosphere.AtmosphereModel`` 与
@@ -8,7 +8,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 import numpy as np
 from scipy.interpolate import PchipInterpolator
@@ -20,9 +20,7 @@ from ballistic_sim.dynamics.common import (
     dynamic_pressure,
     mach_number,
 )
-from ballistic_sim.frames import ecef_to_geodetic, eci_to_ecef
 from ballistic_sim.models.gravity import gravity_wgs84
-from ballistic_sim.models.wind import WindModel
 
 
 @dataclass
@@ -146,6 +144,8 @@ class MPMDynamics:
             dyn_ctx = getattr(ctx.cfg, "_dynamics_context", None)
         else:
             dyn_ctx = ctx
+        if dyn_ctx is None:
+            raise RuntimeError("MPMDynamics requires a DynamicContext")
 
         y = np.asarray(y, dtype=float)
         U = float(y[2])

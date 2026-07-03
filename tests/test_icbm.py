@@ -176,11 +176,11 @@ def test_icbm_end_to_end() -> None:
 
     # ---- 事件链检查 ----
     assert any("主动段" in ev["phase"] and ev["event_index"] == 0 for ev in result.event_log)
-    assert any("中段" in ev["phase"] and ev["event_index"] == 0 for ev in result.event_log)  # apogee
-    assert any("中段" in ev["phase"] and ev["event_index"] == 1 for ev in result.event_log)  # exit
     assert any(
-        "中段" in ev["phase"] and ev["event_index"] == 2 for ev in result.event_log
-    )  # entry
+        "中段" in ev["phase"] and ev["event_index"] == 0 for ev in result.event_log
+    )  # apogee
+    assert any("中段" in ev["phase"] and ev["event_index"] == 1 for ev in result.event_log)  # exit
+    assert any("中段" in ev["phase"] and ev["event_index"] == 2 for ev in result.event_log)  # entry
     assert any("再入段" in ev["phase"] for ev in result.event_log)
 
     # ---- 全程能量曲线 ----

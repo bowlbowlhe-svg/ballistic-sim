@@ -11,11 +11,8 @@ from pathlib import Path
 
 import numpy as np
 
-from ballistic_sim.config import SimConfig
 from ballistic_sim.dynamics.common import rv_to_oe
 from ballistic_sim.frames import ecef_to_geodetic, eci_to_ecef
-from ballistic_sim.models.atmosphere import StandardAtmosphere
-from ballistic_sim.models.wind import UniformWind
 from ballistic_sim.presets import cz2f_config, cz2f_phases, m107_config
 from ballistic_sim.simulator import SimResult, simulate
 

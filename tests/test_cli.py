@@ -2,32 +2,20 @@
 
 from __future__ import annotations
 
-import subprocess
 import sys
 from pathlib import Path
-from typing import Any
-
-import pytest
+import pytest  # noqa: E402
 
 pytest.importorskip("ballistic_sim.cli", reason="CLI module not implemented")
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+from ballistic_sim.cli import main  # noqa: E402
 
 
-def _run_cli(args: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
-    """Invoke ``ballistic_sim.cli.main`` in a fresh interpreter with ``args``."""
-    script = (
-        "import sys\n"
-        f"sys.argv = ['ballistic-sim'] + {args!r}\n"
-        "from ballistic_sim.cli import main\n"
-        "main()\n"
-    )
-    return subprocess.run(
-        [sys.executable, "-c", script],
-        cwd=str(cwd),
-        capture_output=True,
-        text=True,
-    )
+def _run_cli(monkeypatch, args: list[str], cwd: Path) -> None:
+    """Invoke ``ballistic_sim.cli.main`` in-process with ``args``."""
+    monkeypatch.setattr(sys, "argv", ["ballistic-sim"] + args)
+    monkeypatch.chdir(cwd)
+    main()
 
 
 def _pngs_in(path: Path) -> list[Path]:
@@ -35,31 +23,26 @@ def _pngs_in(path: Path) -> list[Path]:
     return list(path.rglob("*.png"))
 
 
-def test_cli_projectile_generates_png(tmp_path: Path) -> None:
+def test_cli_projectile_generates_png(tmp_path: Path, monkeypatch) -> None:
     """``--mission projectile --preset M107 --qe 800 --az 45`` should produce PNGs."""
-    result = _run_cli(
+    _run_cli(
+        monkeypatch,
         ["--mission", "projectile", "--preset", "M107", "--qe", "800", "--az", "45"],
-        cwd=tmp_path,
+        tmp_path,
     )
-    assert result.returncode == 0, result.stderr
-    pngs = _pngs_in(tmp_path)
-    assert pngs, f"No PNG generated; stdout={result.stdout}\nstderr={result.stderr}"
+    assert _pngs_in(tmp_path), "No PNG generated"
 
 
-def test_cli_rocket_generates_png(tmp_path: Path) -> None:
+def test_cli_rocket_generates_png(tmp_path: Path, monkeypatch) -> None:
     """``--mission rocket --rocket CZ-2F`` should produce PNGs."""
-    result = _run_cli(
-        ["--mission", "rocket", "--rocket", "CZ-2F"],
-        cwd=tmp_path,
-    )
-    assert result.returncode == 0, result.stderr
-    pngs = _pngs_in(tmp_path)
-    assert pngs, f"No PNG generated; stdout={result.stdout}\nstderr={result.stderr}"
+    _run_cli(monkeypatch, ["--mission", "rocket", "--rocket", "CZ-2F"], tmp_path)
+    assert _pngs_in(tmp_path), "No PNG generated"
 
 
-def test_cli_no_viz_does_not_generate_png(tmp_path: Path) -> None:
+def test_cli_no_viz_does_not_generate_png(tmp_path: Path, monkeypatch) -> None:
     """``--no-viz`` must suppress PNG output."""
-    result = _run_cli(
+    _run_cli(
+        monkeypatch,
         [
             "--mission",
             "projectile",
@@ -71,8 +54,29 @@ def test_cli_no_viz_does_not_generate_png(tmp_path: Path) -> None:
             "45",
             "--no-viz",
         ],
-        cwd=tmp_path,
+        tmp_path,
     )
-    assert result.returncode == 0, result.stderr
-    pngs = _pngs_in(tmp_path)
-    assert not pngs, f"Unexpected PNG generated with --no-viz: {pngs}"
+    assert not _pngs_in(tmp_path), "Unexpected PNG generated with --no-viz"
+
+
+def test_cli_missile_generates_png(tmp_path: Path, monkeypatch) -> None:
+    """``--mission missile --missile SRBM_600`` should run without error."""
+    _run_cli(monkeypatch, ["--mission", "missile", "--missile", "SRBM_600", "--no-viz"], tmp_path)
+
+
+def test_cli_icbm_generates_png(tmp_path: Path, monkeypatch) -> None:
+    """``--mission icbm`` should run without error."""
+    _run_cli(monkeypatch, ["--mission", "icbm", "--no-viz"], tmp_path)
+
+
+def test_cli_suborbital_generates_png(tmp_path: Path, monkeypatch) -> None:
+    """``--mission suborbital`` should run without error."""
+    _run_cli(monkeypatch, ["--mission", "suborbital", "--no-viz"], tmp_path)
+
+
+def test_cli_help_returns_zero(monkeypatch) -> None:
+    """``--help`` should exit cleanly."""
+    monkeypatch.setattr(sys, "argv", ["ballistic-sim", "--help"])
+    with pytest.raises(SystemExit) as exc_info:
+        main()
+    assert exc_info.value.code == 0

@@ -9,9 +9,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
-import numpy as np
 
-from ballistic_sim.constants import GM_EARTH, WGS84_A
+from ballistic_sim.constants import WGS84_A
 from ballistic_sim.guidance.peg import (
     make_apogee_circularization_event,
     make_peg_state,

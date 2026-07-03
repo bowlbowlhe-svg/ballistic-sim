@@ -7,7 +7,7 @@ from typing import Any, Dict, Literal
 
 import numpy as np
 
-from ballistic_sim.constants import G0_STANDARD, OMEGA_EARTH
+from ballistic_sim.constants import OMEGA_EARTH
 from ballistic_sim.dynamics.common import (
     AeroEnv,
     DynamicContext,
@@ -17,10 +17,8 @@ from ballistic_sim.dynamics.common import (
     relative_velocity_eci,
 )
 from ballistic_sim.frames import (
-    ecef_to_enu_vec,
     ecef_to_geodetic,
     eci_to_ecef,
-    enu_to_ecef_vec,
 )
 from ballistic_sim.models.gravity import gravity_eci, gravity_enu
 
@@ -100,6 +98,8 @@ class PointMassDynamics:
         else:
             dyn_ctx = ctx
             cfg = None
+        if dyn_ctx is None:
+            raise RuntimeError("PointMassDynamics requires a DynamicContext")
 
         y = np.asarray(y, dtype=float)
         r = y[0:3].copy()
@@ -139,6 +139,14 @@ class PointMassDynamics:
 
         return np.concatenate([v, a, [0.0]])
 
+    def state_dim(self) -> int:
+        """状态向量维度：``[r(3), v(3), m]``。"""
+        return 7
+
+    def native_frame(self) -> str:
+        """原生坐标系。"""
+        return self.frame
+
     def telemetry(self, t: float, y: np.ndarray, ctx: Any) -> Dict[str, Any]:
         """返回当前时刻派生量字典。"""
         from ballistic_sim.phases.base import PhaseContext
@@ -149,6 +157,8 @@ class PointMassDynamics:
         else:
             dyn_ctx = ctx
             cfg = None
+        if dyn_ctx is None:
+            raise RuntimeError("PointMassDynamics telemetry requires a DynamicContext")
 
         y = np.asarray(y, dtype=float)
         r = y[0:3]

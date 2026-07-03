@@ -21,8 +21,6 @@ __all__ = [
 class NoAutoDimensionUpgrade(RuntimeError):
     """禁止 3-DOF -> 6-DOF 自动升维。"""
 
-    pass
-
 
 @dataclass
 class ControlMoment:

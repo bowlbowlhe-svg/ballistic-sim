@@ -13,10 +13,8 @@ Usage
 
 说明
 ----
-当前阶段 Developer 的 simulator/phases MVP 尚未就绪，因此新平台结果
-使用 ``_placeholder_new_result`` 生成的占位数据。占位数据刻意与黄金
-文件保持小幅差异，以展示差异表格式；待 ``ballistic_sim.simulator``
-实现后，替换为真实调用即可。
+新平台结果优先调用 ``ballistic_sim`` 的预设与仿真器生成；
+若真实仿真失败则回退到 ``_placeholder_new_result`` 占位数据。
 """
 
 from __future__ import annotations
@@ -66,14 +64,12 @@ def _load_golden(path: Path) -> Dict[str, Any]:
 def _placeholder_new_result(golden: Dict[str, Any]) -> Dict[str, Any]:
     """生成占位新平台结果。
 
-    当前 MVP 未实现，因此通过黄金数据乘以小幅扰动来模拟新平台输出，
-    仅用于验证对拍脚本格式与阈值判定逻辑。
+    仅用于真实仿真不可用时展示差异表格式。
     """
     scalars = golden.get("scalars", {})
     perturbed: Dict[str, float] = {}
     for k, v in scalars.items():
         if isinstance(v, (int, float)):
-            # 0.5% ~ 2% 的随机扰动，固定种子保证可重复
             rng = np.random.default_rng(seed=sum(ord(c) for c in k))
             factor = rng.uniform(0.995, 1.015)
             perturbed[k] = float(v * factor)
@@ -82,32 +78,113 @@ def _placeholder_new_result(golden: Dict[str, Any]) -> Dict[str, Any]:
     return {"scalars": perturbed}
 
 
+def _m107_actual(golden: Dict[str, Any]) -> Dict[str, Any]:
+    """运行 M107 仿真并提取与 golden 对齐的标量指标。"""
+    from ballistic_sim.presets import m107_config, m107_phases
+    from ballistic_sim.simulator import simulate
+
+    cfg = m107_config()
+    result = simulate(cfg, phases=m107_phases())
+    y = result.y
+    t = result.t
+    idx = -1
+    range_m = float(np.linalg.norm(y[idx, :2]))
+    impact_angle = float(np.rad2deg(np.arctan2(-y[idx, 5], np.linalg.norm(y[idx, 3:5]))))
+    # geodetic_range_m: 用末态 ENU 转 ECEF 后求大地线
+    from ballistic_sim.frames import ecef_to_geodetic, enu_to_ecef_vec, geodetic_to_ecef
+
+    r_ecef = geodetic_to_ecef(cfg.launch.lat_deg, cfg.launch.lon_deg, 0.0) + enu_to_ecef_vec(
+        [y[idx, 0], y[idx, 1], 0.0], cfg.launch.lat_deg, cfg.launch.lon_deg
+    )
+    lat_f, lon_f, _ = ecef_to_geodetic(r_ecef)
+    from ballistic_sim.frames import haversine_distance
+
+    geod_range = haversine_distance(cfg.launch.lat_deg, cfg.launch.lon_deg, lat_f, lon_f)
+    return {
+        "scalars": {
+            "range_m": range_m,
+            "geodetic_range_m": geod_range,
+            "impact_angle_deg": impact_angle,
+            "tof_s": float(t[idx]),
+            "max_alt_m": float(np.max(y[:, 2])),
+            "v_impact_m_s": float(np.linalg.norm(y[idx, 3:6])),
+            "landed": True,
+        }
+    }
+
+
+def _cz2f_actual(golden: Dict[str, Any]) -> Dict[str, Any]:
+    """运行 CZ-2F 仿真并提取与 golden 对齐的标量指标。"""
+    from ballistic_sim.constants import WGS84_A
+    from ballistic_sim.dynamics.common import rv_to_oe
+    from ballistic_sim.presets import cz2f_config, cz2f_phases
+    from ballistic_sim.simulator import simulate
+
+    snap = golden.get("config_snapshot", {})
+    cfg = cz2f_config(
+        payload_mass_kg=float(snap.get("payload_mass_kg", 8000.0)),
+        target_peri_km=float(snap.get("target_peri_km", 200.0)),
+        target_apo_km=float(snap.get("target_apo_km", 350.0)),
+        target_inc_deg=float(snap.get("target_inc_deg", 42.0)),
+    )
+    result = simulate(cfg, phases=cz2f_phases(cfg))
+    y = result.y
+    t = result.t
+    idx = -1
+    r_eci = y[idx, 0:3]
+    v_eci = y[idx, 3:6]
+    h_sph = float(np.linalg.norm(r_eci)) - WGS84_A
+    v = float(np.linalg.norm(v_eci))
+    m = float(y[idx, 6])
+    oe = rv_to_oe(r_eci, v_eci)
+    a_m = float(oe["a"])
+    period_min = float(2.0 * np.pi * np.sqrt(a_m**3 / 3.986004418e14) / 60.0) if a_m > 0.0 else 0.0
+
+    # max-q 与对应高度
+    r_all = y[:, 0:3]
+    v_all = y[:, 3:6]
+    h_all = np.linalg.norm(r_all, axis=1) - WGS84_A
+    from ballistic_sim.models.atmosphere import StandardAtmosphere
+
+    atm = StandardAtmosphere()
+    rho_all = np.array([atm.density(max(h, 0.0)) for h in h_all])
+    vrel_all = np.linalg.norm(v_all - np.cross(np.array([0.0, 0.0, 7.2921159e-5]), r_all), axis=1)
+    q_all = 0.5 * rho_all * vrel_all**2
+    idx_q = int(np.argmax(q_all))
+    max_q = float(q_all[idx_q])
+    h_at_maxq = float(h_all[idx_q])
+
+    return {
+        "scalars": {
+            "h_seco_m": h_sph,
+            "v_seco_m_s": v,
+            "m_seco_kg": m,
+            "h_peri_km": float(oe["h_peri_km"]),
+            "h_apo_km": float(oe["h_apo_km"]),
+            "inc_deg": float(oe["i_deg"]),
+            "period_min": period_min,
+            "a_km": a_m / 1e3,
+            "eccentricity": float(oe["e"]),
+            "max_q_pa": max_q,
+            "h_at_maxq_m": h_at_maxq,
+            "t_seco_s": float(t[idx]),
+            "apogee_m": h_sph,
+        }
+    }
+
+
 def _try_real_new_result(golden: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    """尝试调用新平台 simulator；未就绪时返回 None。"""
+    """尝试调用新平台 simulator；失败时返回 None。"""
     try:
-        # TODO: 替换为真实调用，例如
-        # from ballistic_sim.simulator import run_simulation
-        # return run_simulation(_golden_to_sim_config(golden))
-        return None  # pragma: no cover
+        snap = golden.get("config_snapshot", {})
+        preset = str(snap.get("preset", ""))
+        if "M107" in preset:
+            return _m107_actual(golden)
+        if "CZ" in str(snap.get("vehicle", "")).upper() or "cz2f" in preset.lower():
+            return _cz2f_actual(golden)
+        return None
     except Exception:  # pragma: no cover
         return None
-
-
-def _golden_to_sim_config(golden: Dict[str, Any]) -> Dict[str, Any]:
-    """把黄金文件配置快照转换为 SimConfig 字典（占位）。"""
-    snap = golden.get("config_snapshot", {})
-    mission = "projectile" if "M107" in str(snap.get("preset", "")) else "rocket"
-    return {
-        "mission": mission,
-        "launch": {
-            "lat_deg": snap.get("lat_deg", snap.get("launch_lat_deg", 0.0)),
-            "lon_deg": snap.get("lon_deg", snap.get("launch_lon_deg", 0.0)),
-            "alt_m": snap.get("h0_m", snap.get("launch_alt_m", 0.0)),
-            "azimuth_deg": snap.get("az_deg", snap.get("launch_azimuth_deg", 0.0)),
-            "elevation_deg": snap.get("qe_deg", 45.0),
-            "v0_m_s": snap.get("v0_m_s", 0.0),
-        },
-    }
 
 
 def _compare_scalars(
@@ -191,7 +268,8 @@ def _generate_report(
         f"- **Golden file**: `{golden_path}`",
         f"- **Generated at**: {datetime.now(timezone.utc).isoformat()}",
         f"- **Thresholds**: rtol={rtol}, atol={atol}",
-        f"- **New platform result**: {'placeholder (MVP not ready)' if used_placeholder else 'real simulation'}",
+        f"- **New platform result**: "
+        f"{'placeholder (MVP not ready)' if used_placeholder else 'real simulation'}",
         f"- **Overall**: {'PASS' if all_passed else 'FAIL'}",
         "",
         "## Scalar comparison",

@@ -6,7 +6,7 @@ import argparse
 import json
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -20,11 +20,7 @@ from ballistic_sim.config import (
 from ballistic_sim.dynamics.common import rv_to_oe
 from ballistic_sim.frames import ecef_to_geodetic, eci_to_ecef, haversine_distance
 from ballistic_sim.presets import (
-    cz2f_config,
-    cz2f_phases,
     list_missiles,
-    list_projectiles,
-    list_rockets,
     missile_config,
     missile_phases,
     m107_config,
@@ -38,8 +34,6 @@ from ballistic_sim.viz import (
     altitude,
     attach_launch_lla,
     detect_frame,
-    downrange,
-    speed,
 )
 
 
@@ -137,7 +131,7 @@ def _build_icbm_config(args: argparse.Namespace) -> tuple[SimConfig, list]:
     lon = 0.0
     azimuth = args.az if args.az is not None else 45.0
     warhead_mass = 1000.0
-    stage = dict(
+    stage: Dict[str, Any] = dict(
         name="ICBM-boost",
         thrust_vac=1.2e6,
         thrust_sl=1.0e6,
@@ -164,7 +158,7 @@ def _build_icbm_config(args: argparse.Namespace) -> tuple[SimConfig, list]:
         m_dry=warhead_mass,
         sep_name="关机",
     )
-    coast_stage = dict(
+    coast_stage: Dict[str, Any] = dict(
         name="ICBM-coast",
         thrust_vac=0.0,
         thrust_sl=0.0,
@@ -216,7 +210,7 @@ def _build_icbm_config(args: argparse.Namespace) -> tuple[SimConfig, list]:
     cfg = SimConfig(
         mission="icbm",
         vehicle=VehicleConfig(
-            mass_kg=float(stage["m_prop"] + stage["m_dry"]),
+            mass_kg=float(stage["m_prop"]) + float(stage["m_dry"]),
             diameter_m=0.5,
             cd=0.3,
         ),
@@ -255,12 +249,12 @@ def _build_suborbital_config(args: argparse.Namespace) -> tuple[SimConfig, list]
     mass = 1000.0
     thrust = 25.0e3
     isp = 290.0
-    mdot = thrust / (isp * 9.80665)
+    thrust / (isp * 9.80665)
     m_prop = 0.8 * mass
     m_dry = mass - m_prop
     Aref = 0.196
 
-    stage = dict(
+    stage: Dict[str, Any] = dict(
         name="Suborbital-boost",
         thrust_sl=thrust,
         thrust_vac=thrust * 1.1,
@@ -288,7 +282,7 @@ def _build_suborbital_config(args: argparse.Namespace) -> tuple[SimConfig, list]
         sep_name="燃尽",
     )
 
-    coast_stage = dict(
+    coast_stage: Dict[str, Any] = dict(
         name="Suborbital-coast",
         thrust_vac=0.0,
         thrust_sl=0.0,

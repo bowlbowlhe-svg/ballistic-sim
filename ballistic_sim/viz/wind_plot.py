@@ -7,7 +7,7 @@ import numpy as np
 from matplotlib.figure import Figure
 
 from ballistic_sim.simulator import SimResult
-from ballistic_sim.viz import altitude, downrange, enu_coords
+from ballistic_sim.viz import downrange, enu_coords
 
 
 def plot(result: SimResult) -> Figure:

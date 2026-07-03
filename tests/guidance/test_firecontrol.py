@@ -23,9 +23,9 @@ from ballistic_sim.simulator import simulate
 @pytest.mark.parametrize(
     "target_lat, target_lon",
     [
-        (39.9, 0.05),   # 约 4.5 km，低伸弹道
-        (39.9, 0.10),   # 约 9 km，中伸弹道
-        (39.9, 0.15),   # 约 14 km，弯曲弹道
+        (39.9, 0.05),  # 约 4.5 km，低伸弹道
+        (39.9, 0.10),  # 约 9 km，中伸弹道
+        (39.9, 0.15),  # 约 14 km，弯曲弹道
     ],
 )
 def test_m107_firecontrol_latlon(target_lat: float, target_lon: float) -> None:

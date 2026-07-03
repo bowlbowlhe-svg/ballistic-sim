@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from ballistic_sim.constants import G0_STANDARD, GM_EARTH, RE_EARTH_MEAN, WGS84_A
+from ballistic_sim.constants import G0_STANDARD, GM_EARTH, WGS84_A
 from ballistic_sim.models.gravity import (
     gravity_eci,
     gravity_enu,

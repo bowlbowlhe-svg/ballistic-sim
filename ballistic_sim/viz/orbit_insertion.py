@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.figure import Figure
 
-from ballistic_sim.constants import GM_EARTH, WGS84_A
+from ballistic_sim.constants import WGS84_A
 from ballistic_sim.dynamics.common import rv_to_oe
 from ballistic_sim.simulator import SimResult
 

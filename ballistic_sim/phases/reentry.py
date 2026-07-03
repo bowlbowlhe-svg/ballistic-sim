@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, List
+from typing import List
 
-import numpy as np
 
 from ballistic_sim.phases.base import Phase
 from ballistic_sim.phases.events import make_ground_event

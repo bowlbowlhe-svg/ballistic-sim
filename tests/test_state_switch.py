@@ -12,8 +12,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from ballistic_sim.constants import WGS84_A
-from ballistic_sim.frames import ecef_to_enu_vec, enu_to_ecef_vec, geodetic_to_ecef
+from ballistic_sim.frames import enu_to_ecef_vec, geodetic_to_ecef
 from ballistic_sim.state_switch import StateSwitchError, project_state
 
 RTOL = 1e-9

@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, Literal, Optional
+from typing import Any, Dict
 
 import numpy as np
 
-from ballistic_sim.constants import DEG2RAD, OMEGA_EARTH, WGS84_A
+from ballistic_sim.constants import OMEGA_EARTH, WGS84_A
 from ballistic_sim.dynamics.common import (
     AeroEnv,
     DynamicContext,
@@ -16,7 +16,6 @@ from ballistic_sim.dynamics.common import (
     mach_number,
 )
 from ballistic_sim.guidance.open_loop import (
-    flight_path_angle,
     thrust_dir_eci,
     thrust_dir_upperstage,
 )
@@ -106,6 +105,8 @@ class PoweredECIDynamics:
             dyn_ctx = getattr(ctx.cfg, "_dynamics_context", None)
         else:
             dyn_ctx = ctx
+        if dyn_ctx is None:
+            raise RuntimeError("PoweredECIDynamics requires a DynamicContext")
 
         y = np.asarray(y, dtype=float)
         r = y[0:3].copy()
@@ -148,6 +149,8 @@ class PoweredECIDynamics:
             dyn_ctx = getattr(ctx.cfg, "_dynamics_context", None)
         else:
             dyn_ctx = ctx
+        if dyn_ctx is None:
+            raise RuntimeError("PoweredECIDynamics telemetry requires a DynamicContext")
 
         y = np.asarray(y, dtype=float)
         r = y[0:3]

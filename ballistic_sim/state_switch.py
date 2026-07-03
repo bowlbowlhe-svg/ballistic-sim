@@ -7,7 +7,6 @@ from typing import Tuple
 
 import numpy as np
 
-from ballistic_sim.constants import OMEGA_EARTH
 from ballistic_sim.frames import (
     ecef_to_eci,
     ecef_to_enu_vec,
@@ -22,8 +21,6 @@ logger = logging.getLogger(__name__)
 
 class StateSwitchError(NotImplementedError):
     """禁止的状态切换方向。"""
-
-    pass
 
 
 def _roundtrip_check(

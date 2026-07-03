@@ -9,7 +9,6 @@ from __future__ import annotations
 from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
-from scipy.optimize import brentq, least_squares, minimize_scalar
 
 from ballistic_sim.frames import haversine_distance, initial_bearing
 from ballistic_sim.guidance.firecontrol import solve_firing_solution_latlon

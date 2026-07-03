@@ -3,12 +3,10 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.animation import FuncAnimation
-from matplotlib.figure import Figure
 
 from ballistic_sim.simulator import SimResult
 from ballistic_sim.viz import detect_frame, enu_coords

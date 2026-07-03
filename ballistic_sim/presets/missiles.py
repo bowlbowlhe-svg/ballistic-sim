@@ -19,7 +19,6 @@ from ballistic_sim.config import (
 )
 from ballistic_sim.constants import WGS84_A
 from ballistic_sim.dynamics.powered_eci import PoweredECIDynamics
-from ballistic_sim.frames import ecef_to_geodetic
 from ballistic_sim.phases.base import Phase
 from ballistic_sim.phases.coasting import CoastingPhase
 from ballistic_sim.phases.powered import PoweredPhase

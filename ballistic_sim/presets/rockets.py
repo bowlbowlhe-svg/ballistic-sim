@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 import numpy as np
 
@@ -22,7 +22,6 @@ from ballistic_sim.constants import G0_STANDARD
 from ballistic_sim.dynamics.powered_eci import PoweredECIDynamics
 from ballistic_sim.models.propulsion import PropulsionModel
 from ballistic_sim.phases.base import Phase
-from ballistic_sim.phases.coasting import CoastingPhase
 from ballistic_sim.phases.events import make_fairing_event_h
 from ballistic_sim.phases.powered import PoweredPhase
 from ballistic_sim.phases.terminal import TerminalPhase
@@ -148,10 +147,6 @@ def rocket_config(
     payload = (
         payload_mass_kg if payload_mass_kg is not None else float(r.get("payload_mass_kg", 0.0))
     )
-    peri = (
-        target_peri_km if target_peri_km is not None else float(target.get("target_peri_km", 200.0))
-    )
-    apo = target_apo_km if target_apo_km is not None else float(target.get("target_apo_km", 350.0))
     inc = (
         target_inc_deg if target_inc_deg is not None else float(target.get("target_inc_deg", 42.0))
     )
