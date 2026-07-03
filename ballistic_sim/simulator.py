@@ -134,9 +134,9 @@ def simulate(cfg: SimConfig, phases: List[Phase]) -> SimResult:
             stop_reason = f"integration_failed@{ph.name}"
             break
 
-        # 记录事件
+        # 记录事件（process_events 已返回绝对时刻）
         for ev in ph.process_events(sol):
-            ev["t"] = ev.get("t", float(sol.t[-1])) + t_start
+            ev["t"] = ev.get("t", float(sol.t[-1]))
             event_log.append(ev)
 
         y_end = ph.final_state(sol)

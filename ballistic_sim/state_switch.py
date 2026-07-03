@@ -155,9 +155,7 @@ def project_state(
     # 6-DOF -> 3-DOF (降维)
     if src_dim == 13 and dst_dim == 7:
         if src_frame == "ENU" and dst_frame == "ECI":
-            raise StateSwitchError(
-                "禁止 6-DOF ENU -> 3-DOF ECI：缺乏全局位置信息定义 ECI 坐标"
-            )
+            raise StateSwitchError("禁止 6-DOF ENU -> 3-DOF ECI：缺乏全局位置信息定义 ECI 坐标")
         y_dst = y_src[:7].copy()
         return y_dst
 
