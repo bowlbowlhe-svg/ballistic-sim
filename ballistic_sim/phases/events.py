@@ -1,0 +1,158 @@
+"""统一事件函数工厂。"""
+
+from __future__ import annotations
+
+from typing import Callable, Optional
+
+import numpy as np
+
+from ballistic_sim.constants import WGS84_A
+from ballistic_sim.frames import ecef_to_geodetic, eci_to_ecef
+
+
+def _set_event_attrs(
+    fn: Callable[[float, np.ndarray], float],
+    terminal: bool = True,
+    direction: int = 0,
+) -> Callable[[float, np.ndarray], float]:
+    fn.terminal = terminal  # type: ignore[attr-defined]
+    fn.direction = direction  # type: ignore[attr-defined]
+    return fn
+
+
+def make_ground_event(
+    frame: str = "ECI",
+    h_target: float = 0.0,
+    theta0: float = 0.0,
+) -> Callable[[float, np.ndarray], float]:
+    """落地/触地事件。
+
+    Parameters
+    ----------
+    frame:
+        状态所在坐标系；``ECI`` 时通过 ``eci_to_ecef + ecef_to_geodetic`` 求椭球高，
+        ``ENU`` 时直接用 ``y[2] - h_target``。
+    h_target:
+        触发高度 (m)。
+    theta0:
+        ECI/ECEF 历元夹角 (rad)。
+    """
+
+    def ev(t: float, y: np.ndarray) -> float:
+        if frame.upper() == "ENU":
+            return float(y[2]) - h_target
+        r_eci = np.asarray(y[0:3], dtype=float)
+        r_ecef = eci_to_ecef(r_eci, float(t), theta0)
+        _, _, alt = ecef_to_geodetic(r_ecef)
+        return alt - h_target
+
+    return _set_event_attrs(ev, terminal=True, direction=-1)
+
+
+def make_apogee_event(frame: str = "ECI") -> Callable[[float, np.ndarray], float]:
+    """远地点事件：径向速度/竖直速度由正变负。"""
+
+    def ev(t: float, y: np.ndarray) -> float:
+        if frame.upper() == "ENU":
+            return float(y[5])
+        r = np.asarray(y[0:3], dtype=float)
+        v = np.asarray(y[3:6], dtype=float)
+        return float(np.dot(r, v))
+
+    return _set_event_attrs(ev, terminal=False, direction=-1)
+
+
+def make_burnout_event(m_dry: float) -> Callable[[float, np.ndarray], float]:
+    """推进剂耗尽事件：当前质量降到 ``m_dry`` 时触发。"""
+
+    def ev(t: float, y: np.ndarray) -> float:
+        return float(y[6]) - float(m_dry)
+
+    return _set_event_attrs(ev, terminal=True, direction=-1)
+
+
+def make_stage_separation_event(
+    t_sep: Optional[float] = None,
+) -> Callable[[float, np.ndarray], float]:
+    """固定时刻分离事件；若 ``t_sep`` 为 None，则作为一个占位非触发事件。"""
+
+    def ev(t: float, y: np.ndarray) -> float:
+        if t_sep is None:
+            return 1.0
+        return float(t_sep) - float(t)
+
+    return _set_event_attrs(ev, terminal=True, direction=-1)
+
+
+def make_target_distance_event(
+    target_eci: np.ndarray,
+    distance_m: float,
+) -> Callable[[float, np.ndarray], float]:
+    """与目标点距离小于阈值事件（用于导弹命中）。"""
+    target = np.asarray(target_eci, dtype=float).reshape(3)
+    d2 = float(distance_m) ** 2
+
+    def ev(t: float, y: np.ndarray) -> float:
+        r = np.asarray(y[0:3], dtype=float)
+        return float(np.dot(r - target, r - target)) - d2
+
+    return _set_event_attrs(ev, terminal=True, direction=-1)
+
+
+def make_orbit_insertion_event(
+    target: dict,
+    frame: str = "ECI",
+) -> Callable[[float, np.ndarray], float]:
+    """轨道插入能量/半长轴达标事件。
+
+    ``target`` 需含 ``peri_km``、``apo_km``，或 ``h_km``、``inc_deg``。
+    采用半长轴达标判据，对状态连续、利于 brentq 求根。
+    """
+    from ballistic_sim.dynamics.common import rv_to_oe
+
+    if "peri_km" in target and "apo_km" in target:
+        peri_m = float(target["peri_km"]) * 1e3
+        apo_m = float(target["apo_km"]) * 1e3
+        a_target = 0.5 * (WGS84_A + peri_m + WGS84_A + apo_m)
+    elif "h_km" in target:
+        a_target = WGS84_A + float(target["h_km"]) * 1e3
+    else:
+        raise ValueError("target 需含 peri_km/apo_km 或 h_km")
+
+    def ev(t: float, y: np.ndarray) -> float:
+        r = np.asarray(y[0:3], dtype=float)
+        v = np.asarray(y[3:6], dtype=float)
+        oe = rv_to_oe(r, v)
+        return float(oe["a"] - a_target)
+
+    return _set_event_attrs(ev, terminal=True, direction=1)
+
+
+def make_fairing_event_h(
+    h_thresh_m: float,
+    frame: str = "ECI",
+    theta0: float = 0.0,
+) -> Callable[[float, np.ndarray], float]:
+    """几何高度上穿阈值事件（抛整流罩，非 terminal）。"""
+
+    def ev(t: float, y: np.ndarray) -> float:
+        if frame.upper() == "ENU":
+            h = float(y[2])
+        else:
+            r_ecef = eci_to_ecef(np.asarray(y[0:3], dtype=float), float(t), theta0)
+            _, _, h = ecef_to_geodetic(r_ecef)
+        return h - float(h_thresh_m)
+
+    return _set_event_attrs(ev, terminal=False, direction=1)
+
+
+def make_fairing_event_q(
+    q_fn: Callable[[float, np.ndarray], float],
+    q_thresh_pa: float,
+) -> Callable[[float, np.ndarray], float]:
+    """动压下穿阈值事件（抛整流罩，非 terminal）。"""
+
+    def ev(t: float, y: np.ndarray) -> float:
+        return q_fn(t, y) - float(q_thresh_pa)
+
+    return _set_event_attrs(ev, terminal=False, direction=-1)
