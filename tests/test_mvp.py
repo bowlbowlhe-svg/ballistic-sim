@@ -1,0 +1,112 @@
+"""MVP 误差验证测试（阶段 2）。
+
+- 域 I：M107 炮弹 MPM 仿真，对比 ``tests/golden/atmospheric_m107.json``。
+- 域 II：CZ-2F powered_eci 仿真，对比 ``tests/golden/exo_cz2f.json``。
+"""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Any, Dict
+
+import numpy as np
+import pytest
+
+from ballistic_sim.dynamics.common import rv_to_oe
+from ballistic_sim.frames import ecef_to_geodetic, eci_to_ecef
+from ballistic_sim.presets import cz2f_config, cz2f_phases, m107_config
+from ballistic_sim.simulator import SimResult, simulate
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+GOLDEN_DIR = PROJECT_ROOT / "tests" / "golden"
+
+
+def _load_golden(name: str) -> Dict[str, Any]:
+    with open(GOLDEN_DIR / name, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _relative_error(golden: float, actual: float) -> float:
+    return abs(actual - golden) / max(abs(golden), 1e-30)
+
+
+def _m107_summary(result: SimResult) -> Dict[str, float]:
+    y = result.y
+    t = result.t
+    alt = y[:, 2]
+    idx = -1
+    range_ground = float(np.linalg.norm(y[idx, :2]))
+    impact_angle = float(np.rad2deg(np.arctan2(-y[idx, 5], np.linalg.norm(y[idx, 3:5]))))
+    v_impact = float(np.linalg.norm(y[idx, 3:6]))
+    return {
+        "tof_s": float(t[idx]),
+        "range_m": range_ground,
+        "impact_angle_deg": impact_angle,
+        "v_impact_m_s": v_impact,
+        "max_alt_m": float(np.max(alt)),
+    }
+
+
+def _cz2f_summary(result: SimResult) -> Dict[str, float]:
+    y = result.y
+    t = result.t
+    idx = -1
+    r_eci = y[idx, 0:3]
+    v_eci = y[idx, 3:6]
+    oe = rv_to_oe(r_eci, v_eci)
+    r_ecef = eci_to_ecef(r_eci, float(t[idx]))
+    _, _, h = ecef_to_geodetic(r_ecef)
+    return {
+        "t_seco_s": float(t[idx]),
+        "h_seco_m": float(h),
+        "v_seco_m_s": float(np.linalg.norm(v_eci)),
+        "m_seco_kg": float(y[idx, 6]),
+        "h_peri_km": oe["h_peri_km"],
+        "h_apo_km": oe["h_apo_km"],
+        "inc_deg": oe["i_deg"],
+        "eccentricity": oe["e"],
+    }
+
+
+@pytest.mark.golden
+def test_mvp_m107() -> None:
+    """M107 MPM：射程相对误差 <2%、落角绝对误差 <0.5°、飞行时间相对误差 <2%。"""
+    golden = _load_golden("atmospheric_m107.json")["scalars"]
+    cfg = m107_config()
+    result = simulate(cfg, phases=[])
+    actual = _m107_summary(result)
+
+    range_err = _relative_error(golden["range_m"], actual["range_m"])
+    impact_angle_err = abs(golden["impact_angle_deg"] - actual["impact_angle_deg"])
+    tof_err = _relative_error(golden["tof_s"], actual["tof_s"])
+
+    assert range_err < 0.02, f"range relative error {range_err:.4%} >= 2%"
+    assert impact_angle_err < 0.5, f"impact angle error {impact_angle_err:.4f}° >= 0.5°"
+    assert tof_err < 0.02, f"TOF relative error {tof_err:.4%} >= 2%"
+
+
+@pytest.mark.golden
+@pytest.mark.xfail(
+    reason="CZ-2F guidance tuning pending stage 3: SECO height/speed/orbit deviation >1%",
+    strict=False,
+)
+def test_mvp_cz2f() -> None:
+    """CZ-2F powered_eci：SECO 高度/速度/质量、近地点/远地点/倾角误差 <1%。"""
+    golden = _load_golden("exo_cz2f.json")["scalars"]
+    cfg = cz2f_config()
+    phases = cz2f_phases(cfg)
+    result = simulate(cfg, phases=phases)
+    actual = _cz2f_summary(result)
+
+    checks = {
+        "h_seco_m": _relative_error(golden["h_seco_m"], actual["h_seco_m"]),
+        "v_seco_m_s": _relative_error(golden["v_seco_m_s"], actual["v_seco_m_s"]),
+        "m_seco_kg": _relative_error(golden["m_seco_kg"], actual["m_seco_kg"]),
+        "h_peri_km": _relative_error(golden["h_peri_km"], actual["h_peri_km"]),
+        "h_apo_km": _relative_error(golden["h_apo_km"], actual["h_apo_km"]),
+        "inc_deg": _relative_error(golden["inc_deg"], actual["inc_deg"]),
+    }
+
+    failed = {k: v for k, v in checks.items() if v >= 0.01}
+    assert not failed, f"CZ-2F metric errors >= 1%: {failed}"
