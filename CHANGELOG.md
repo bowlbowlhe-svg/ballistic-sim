@@ -92,6 +92,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
     `tests/test_cli_wind_terrain.py`、`tests/test_terrain_integration.py`、
     `tests/dynamics/test_point_mass.py`，以及验收阶段补充的
     `tests/test_wind_terrain_boundary.py`。
+- **GUI 可视化入口（阶段 2.4）**：
+  - 新增 `ballistic_sim/gui/` 包：tkinter 主应用 `BallisticGuiApp`、
+    表单自动生成 `fields.py`、后台仿真线程 `runner.py`、配置/预设构造 `builder.py`。
+  - 顶部工具栏支持任务/预设切换、Run、Load YAML、Save YAML。
+  - 左侧 `ttk.Notebook` 参数面板：Vehicle / Launch / Environment / Guidance /
+    Options / Monte Carlo，按 pydantic 字段自动生成控件。
+  - 右侧结果面板：文本摘要 + matplotlib `FigureCanvasTkAgg` 嵌入高度-射程曲线。
+  - 新增顶层入口 `launch_gui.py`；`ballistic_sim/cli.py` 新增 `--gui` 参数，
+    启动 GUI 而非 CLI 运行。GUI 导入采用懒加载，缺失 tkinter 时不破坏 CLI。
+  - 新增测试 `tests/test_gui.py`，覆盖导入、表单生成、应用构造、YAML 往返、
+    CLI `--gui` 集成；无显示环境时自动 skip。
 
 ### Changed
 
@@ -99,6 +110,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 - `OptionsConfig` 新增 `sixdof_reentry` 开关。
 - `phases/builder.py` 的 MPM 相位构造现在读取 `cfg.options.mpm_use_spin` 与 `cfg.options.mpm_use_dynamic_alpha`。
 - `simulator.py` 的 `make_atmosphere` 调用透传 `delta_t` 与 `density_factor`。
+- `--mission` 改为可选参数；未提供且未使用 `--gui` 时给出明确错误提示。
 
 ### Known Limitations
 
@@ -107,6 +119,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 - batch/gpu 后端为统计近似模型，忽略自转偏流与动态攻角，仅支持 projectile 任务与 UniformWind。
 - GPU 后端依赖 CuPy/CUDA，无对应环境时自动跳过或抛出 ImportError/RuntimeError。
 - GRIB2 空间插值在本阶段未完整实现，`GRIB2WindModel` 仅提供最近高度层兜底。
+- GUI 为阶段 2.4 MVP：当前仅嵌入高度-射程曲线，后续可扩展 3D 轨迹、地面航迹、Monte Carlo 落点图等切换视图。
 
 ### Version Milestones
 
@@ -115,6 +128,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 | `v0.2.0-stage1` | 阶段 2.1 | 6-DOF 闭环动力学与高保真再入（MVP） |
 | `v0.2.0-stage2.2` | 阶段 2.2 | Monte Carlo 散布分析与 GPU/CPU 批量 MPM 仿真 |
 | `v0.2.0-stage2.3` | 阶段 2.3 | 真实风场与地形集成 |
+| `v0.2.0-stage2.4` | 阶段 2.4 | GUI 可视化入口 |
 
 [0.2.0]: https://github.com/bowlbowlhe-svg/ballistic-sim/releases/tag/v0.2.0
 [0.1.0]: https://github.com/bowlbowlhe-svg/ballistic-sim/releases/tag/v0.1.0

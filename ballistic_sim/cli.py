@@ -59,7 +59,7 @@ def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Ballistic Sim — 统一弹道仿真 CLI")
     parser.add_argument(
         "--mission",
-        required=True,
+        required=False,
         choices=["projectile", "missile", "rocket", "icbm", "suborbital"],
         help="任务类型",
     )
@@ -96,6 +96,7 @@ def _parse_args() -> argparse.Namespace:
         type=str,
         help="地形范围 lat_min,lat_max,lon_min,lon_max",
     )
+    parser.add_argument("--gui", action="store_true", help="启动图形界面")
     return parser.parse_args()
 
 
@@ -596,6 +597,15 @@ def _mc_summary(mc_result: Any) -> Dict[str, Any]:
 
 def main() -> None:
     args = _parse_args()
+
+    if args.gui:
+        from ballistic_sim.gui import run_gui
+
+        run_gui()
+        return
+
+    if args.mission is None:
+        raise SystemExit("错误: --mission 是必需参数（--gui 除外）")
 
     cfg, phases = _build_config_and_phases(args)
 
