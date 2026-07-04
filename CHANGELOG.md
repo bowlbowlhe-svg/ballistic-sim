@@ -77,6 +77,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 - **配置扩展**：`OptionsConfig` 新增 `mpm_use_spin`、`mpm_use_dynamic_alpha`、`monte_carlo`；`EnvironmentConfig` 新增 `delta_t`、`density_factor`；新增 `MonteCarloConfig`、`DistributionConfig`、`PerturbationConfig`。
 - **Monte Carlo 与批量 MPM 测试**：新增 `tests/dynamics/test_batch_mpm.py`、`tests/test_monte_carlo.py`、`tests/viz/test_monte_carlo_plot.py`，并在 `tests/test_cli.py` 补充 MC 参数测试。
 - **VehicleConfig 6-DOF 字段**：`Ix`、`It`、`x_cp_cg`、`twist_cal`。
+- **真实风场与地形集成（阶段 2.3）**：
+  - `EnvironmentConfig` 扩展 `wind_model`、`wind_profile_path/text`、对数/幂律/Dryden 参数；
+    `terrain_model`、`terrain_extent`、`terrain_max_height` 与 `terrain_enabled` 兼容开关。
+  - `simulator.py` 新增 `_resolve_wind` / `_resolve_terrain`，按配置自动装配风场与地形模型。
+  - `DynamicContext` 新增 `terrain` 字段；`make_ground_event` 支持 ENU/ECI 地形高程参与落地判据。
+  - `phases/builder.py` 与 `PoweredPhase` / `CoastingPhase` / `ReentryPhase` / `TerminalPhase`
+    接入地形模型，避免循环导入。
+  - 修复 `PointMassDynamics` ECI 模式下风场固定使用 `h=0` 的 bug，改为按几何高度 `h` 查询。
+  - CLI 新增 `--wind-model`、`--wind-profile`、`--terrain-model`、`--terrain-path`、
+    `--terrain-extent` 参数。
+  - `weather` extra 增加 `cfgrib>=0.9`、`xarray>=2023.0`（懒加载，不强制安装）。
+  - 新增/扩展测试：`tests/test_simulator.py`、`tests/phases/test_events_terrain.py`、
+    `tests/test_cli_wind_terrain.py`、`tests/test_terrain_integration.py`、
+    `tests/dynamics/test_point_mass.py`，以及验收阶段补充的
+    `tests/test_wind_terrain_boundary.py`。
 
 ### Changed
 
@@ -91,6 +106,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 - 高动态压力再入（>10 km/s）下积分步长可能过小，需进一步调优 `max_step` 与阻尼模型。
 - batch/gpu 后端为统计近似模型，忽略自转偏流与动态攻角，仅支持 projectile 任务与 UniformWind。
 - GPU 后端依赖 CuPy/CUDA，无对应环境时自动跳过或抛出 ImportError/RuntimeError。
+- GRIB2 空间插值在本阶段未完整实现，`GRIB2WindModel` 仅提供最近高度层兜底。
 
 ### Version Milestones
 
@@ -98,6 +114,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 |-----|-------|-------------|
 | `v0.2.0-stage1` | 阶段 2.1 | 6-DOF 闭环动力学与高保真再入（MVP） |
 | `v0.2.0-stage2.2` | 阶段 2.2 | Monte Carlo 散布分析与 GPU/CPU 批量 MPM 仿真 |
+| `v0.2.0-stage2.3` | 阶段 2.3 | 真实风场与地形集成 |
 
 [0.2.0]: https://github.com/bowlbowlhe-svg/ballistic-sim/releases/tag/v0.2.0
 [0.1.0]: https://github.com/bowlbowlhe-svg/ballistic-sim/releases/tag/v0.1.0

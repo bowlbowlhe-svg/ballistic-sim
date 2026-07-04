@@ -129,12 +129,14 @@ class PointMassDynamics:
                 a[1] += -2.0 * (Omega_u * v[0])
                 a[2] += 2.0 * (Omega_n * v[0])
         else:
+            r_ecef = eci_to_ecef(r, 0.0)
+            _, _, h = ecef_to_geodetic(r_ecef)
             gm = gravity_eci(r, model="j2" if self.options.get("j2", True) else "point")
             a = gm.copy()
-            w_enu = dyn_ctx.wind(0.0) if dyn_ctx.wind is not None else None
+            w_enu = dyn_ctx.wind(h) if dyn_ctx.wind is not None else None
             wind_vec = None
-            if w_enu is not None and np.linalg.norm(w_enu.vector) > 0.0:
-                wind_vec = w_enu.vector
+            if w_enu is not None and float(np.linalg.norm(np.asarray(w_enu))) > 0.0:
+                wind_vec = np.asarray(w_enu).reshape(3)
             v_rel = relative_velocity_eci(r, v, wind_vec, lat0, lon0)
             a += self._drag_accel(dyn_ctx, v_rel, env, m)
 

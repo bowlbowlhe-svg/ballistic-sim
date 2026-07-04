@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Callable, Optional
+from typing import Any, Callable, Optional
 
 import numpy as np
 
@@ -24,6 +24,9 @@ def make_ground_event(
     frame: str = "ECI",
     h_target: float = 0.0,
     theta0: float = 0.0,
+    terrain: Optional[Any] = None,
+    lat0: float = 0.0,
+    lon0: float = 0.0,
 ) -> Callable[[float, np.ndarray], float]:
     """落地/触地事件。
 
@@ -36,14 +39,27 @@ def make_ground_event(
         触发高度 (m)。
     theta0:
         ECI/ECEF 历元夹角 (rad)。
+    terrain:
+        可选地形模型；提供时落地判据改为 ``alt - h_terrain``。
+    lat0, lon0:
+        发射点经纬度 (deg)，用于 ENU 地形偏移或 ECI 高程查询辅助。
     """
 
     def ev(t: float, y: np.ndarray) -> float:
         if frame.upper() == "ENU":
-            return float(y[2]) - h_target
+            e = float(y[0])
+            n = float(y[1])
+            alt = float(y[2])
+            if terrain is not None:
+                h_terrain = terrain.height_at_enu(e, n, lat0, lon0)
+                return alt - h_terrain - h_target
+            return alt - h_target
         r_eci = np.asarray(y[0:3], dtype=float)
         r_ecef = eci_to_ecef(r_eci, float(t), theta0)
-        _, _, alt = ecef_to_geodetic(r_ecef)
+        lat, lon, alt = ecef_to_geodetic(r_ecef)
+        if terrain is not None:
+            h_terrain = terrain.height_at(lat, lon)
+            return alt - h_terrain - h_target
         return alt - h_target
 
     return _set_event_attrs(ev, terminal=True, direction=-1)

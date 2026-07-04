@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, List, Literal, Optional
+from typing import Any, List, Literal, Optional, Tuple
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -117,19 +117,43 @@ class EnvironmentConfig(BaseModel):
         pattern=r"^(isa|us76|none|gfs)$",
         description="大气模型",
     )
+    wind_model: Literal[
+        "uniform", "log", "power", "profile", "composite", "dryden", "none"
+    ] = Field(default="uniform", description="风场模型类型")
     wind_m_s: List[float] = Field(
-        default=[0.0, 0.0, 0.0],
+        default_factory=lambda: [0.0, 0.0, 0.0],
         description="恒定风矢量 [E, N, U] (m/s)",
     )
+    wind_profile_path: Optional[str] = Field(default=None, description="风场廓线文件路径")
+    wind_profile_text: Optional[str] = Field(default=None, description="风场廓线文本")
+    wind_u_ref: float = Field(default=10.0, description="参考风速 (m/s)")
+    wind_z_ref: float = Field(default=10.0, gt=0, description="参考高度 (m)")
+    wind_z0: float = Field(default=0.03, gt=0, description="对数风粗糙长度 (m)")
+    wind_alpha: float = Field(default=0.14, description="幂律风指数")
+    wind_direction_deg: float = Field(default=0.0, description="风向 (deg，自北顺时针)")
+    wind_dryden_seed: Optional[int] = Field(default=None, description="Dryden 阵风随机种子")
     gravity_model: str = Field(
         default="wgs84",
         pattern=r"^(wgs84|j2|point)$",
         description="引力模型",
     )
-    use_terrain: bool = Field(default=False, description="是否启用地形")
-    terrain_path: Optional[str] = Field(default=None, description="地形数据路径")
+    use_terrain: bool = Field(default=False, description="是否启用地形（兼容开关）")
+    terrain_model: Literal[
+        "null", "hilly", "numpy", "image", "geotiff", "srtm_dir", "srtm_files"
+    ] = Field(default="null", description="地形模型类型")
+    terrain_path: Optional[str] = Field(default=None, description="地形文件或目录路径")
+    terrain_extent: Optional[Tuple[float, float, float, float]] = Field(
+        default=None,
+        description="地形范围 (lat_min, lat_max, lon_min, lon_max)",
+    )
+    terrain_max_height: float = Field(default=1000.0, ge=0, description="地形最大高程 (m)")
     delta_t: float = Field(default=0.0, description="大气温度偏差 (K)")
     density_factor: float = Field(default=1.0, gt=0, description="大气密度修正因子")
+
+    @property
+    def terrain_enabled(self) -> bool:
+        """是否启用地形：兼容 ``use_terrain`` 或 ``terrain_model != "null"``。"""
+        return self.use_terrain or self.terrain_model.lower() not in ("null", "none")
 
 
 class GuidanceConfig(BaseModel):

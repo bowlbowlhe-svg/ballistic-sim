@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List
+from typing import Any, List
 
 
 from ballistic_sim.phases.base import Phase
@@ -17,11 +17,20 @@ class CoastingPhase(Phase):
     结束事件默认包含：远地点、落地保护。动力学模块应关闭推力。
     """
 
+    terrain: Any = None
+    lat0: float = 0.0
+    lon0: float = 0.0
+
     def __post_init__(self):
         if not self.events:
             self.events = [
                 make_apogee_event(frame=self.native_frame()),
-                make_ground_event(frame=self.native_frame()),
+                make_ground_event(
+                    frame=self.native_frame(),
+                    terrain=self.terrain,
+                    lat0=self.lat0,
+                    lon0=self.lon0,
+                ),
             ]
 
     def state_dim(self) -> int:

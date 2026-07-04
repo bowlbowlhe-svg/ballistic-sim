@@ -32,6 +32,7 @@ class DynamicContext:
     atmosphere: AtmosphereModel
     wind: WindModel
     aero: Any
+    terrain: Optional[Any] = None
     gravity_model: str = "j2"
     options: Dict[str, bool] = None  # type: ignore[assignment]
 

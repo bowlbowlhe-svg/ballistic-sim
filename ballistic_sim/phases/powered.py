@@ -21,12 +21,20 @@ class PoweredPhase(Phase):
     m_dry: float = 0.0
     m_after_separation: Optional[float] = None
     sep_name: str = "分离"
+    terrain: Any = None
+    lat0: float = 0.0
+    lon0: float = 0.0
 
     def __post_init__(self):
         if not self.events:
             self.events = [
                 make_burnout_event(self.m_dry),
-                make_ground_event(frame=self.native_frame()),
+                make_ground_event(
+                    frame=self.native_frame(),
+                    terrain=self.terrain,
+                    lat0=self.lat0,
+                    lon0=self.lon0,
+                ),
             ]
 
     def state_dim(self) -> int:

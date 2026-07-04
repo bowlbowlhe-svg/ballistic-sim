@@ -27,6 +27,7 @@
 | 外弹道方程 | `ballistics/gpu_mpm.py` | `ballistic_sim/dynamics/gpu_mpm.py` | ✅ 已完成 | v0.2.0-stage2.2 CuPy GPU 批量 MPM |
 | 外弹道方程 | `ballistics/monte_carlo.py` | `ballistic_sim/monte_carlo.py` | ✅ 已完成 | v0.2.0-stage2.2 Monte Carlo 散布分析 |
 | 外弹道方程 | `ballistics/viz/montecarlo_plot.py` | `ballistic_sim/viz/monte_carlo.py` | ✅ 已完成 | v0.2.0-stage2.2 蒙特卡洛落点散布图 |
+| 外弹道方程 | `wind.py` + `terrain.py` 集成 | `ballistic_sim/simulator.py` / `phases` | ✅ 已完成 | v0.2.0-stage2.3 真实风场与地形集成 |
 
 ## 迁移原则
 

@@ -20,6 +20,9 @@ class TerminalPhase(Phase):
     """
 
     target: Any = None
+    terrain: Any = None
+    lat0: float = 0.0
+    lon0: float = 0.0
 
     def __post_init__(self):
         self.is_terminal = True
@@ -27,7 +30,14 @@ class TerminalPhase(Phase):
             if self.target is not None:
                 self.events = [make_orbit_insertion_event(self.target)]
             else:
-                self.events = [make_ground_event(frame="ECI")]
+                self.events = [
+                    make_ground_event(
+                        frame=self.native_frame(),
+                        terrain=self.terrain,
+                        lat0=self.lat0,
+                        lon0=self.lon0,
+                    )
+                ]
 
     def state_dim(self) -> int:
         return self.dynamics.state_dim()

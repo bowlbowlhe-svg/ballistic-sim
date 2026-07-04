@@ -6,7 +6,7 @@ import argparse
 import json
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -81,6 +81,21 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--mc-n-jobs", type=int, default=-1, help="MC process 后端并行数")
     parser.add_argument("--mc-seed", type=int, default=42, help="MC 随机种子")
     parser.add_argument("--mc-samples", type=int, default=100, help="MC 样本数")
+    parser.add_argument(
+        "--wind-model", type=str, help="风场模型 (uniform/log/power/profile/composite/dryden/none)"
+    )
+    parser.add_argument("--wind-profile", type=str, help="风场廓线文件路径")
+    parser.add_argument(
+        "--terrain-model",
+        type=str,
+        help="地形模型 (null/hilly/numpy/image/geotiff/srtm_dir/srtm_files)",
+    )
+    parser.add_argument("--terrain-path", type=str, help="地形文件或目录路径")
+    parser.add_argument(
+        "--terrain-extent",
+        type=str,
+        help="地形范围 lat_min,lat_max,lon_min,lon_max",
+    )
     return parser.parse_args()
 
 
@@ -349,18 +364,50 @@ def _build_suborbital_config(args: argparse.Namespace) -> tuple[SimConfig, list]
     return cfg, [ph_boost, ph_coast, ph_terminal]
 
 
+def _parse_terrain_extent(value: Optional[str]) -> Optional[list[float]]:
+    """解析 --terrain-extent 为 [lat_min, lat_max, lon_min, lon_max]。"""
+    if value is None:
+        return None
+    parts = [float(x.strip()) for x in value.split(",")]
+    if len(parts) != 4:
+        raise ValueError("--terrain-extent 需为 lat_min,lat_max,lon_min,lon_max")
+    return parts
+
+
+def _apply_environment_overrides(cfg: SimConfig, args: argparse.Namespace) -> SimConfig:
+    """将 CLI 风场/地形参数通过 apply_overrides 注入配置。"""
+    overrides: Dict[str, Any] = {}
+    if args.wind_model is not None:
+        overrides["environment.wind_model"] = args.wind_model
+    if args.wind_profile is not None:
+        overrides["environment.wind_profile_path"] = args.wind_profile
+    if args.terrain_model is not None:
+        overrides["environment.terrain_model"] = args.terrain_model
+    if args.terrain_path is not None:
+        overrides["environment.terrain_path"] = args.terrain_path
+    extent = _parse_terrain_extent(args.terrain_extent)
+    if extent is not None:
+        overrides["environment.terrain_extent"] = extent
+    if overrides:
+        cfg = apply_overrides(cfg, overrides)
+    return cfg
+
+
 def _build_config_and_phases(args: argparse.Namespace) -> tuple[SimConfig, list]:
     if args.mission == "projectile":
-        return _build_projectile_config(args)
-    if args.mission == "missile":
-        return _build_missile_config(args)
-    if args.mission == "rocket":
-        return _build_rocket_config(args)
-    if args.mission == "icbm":
-        return _build_icbm_config(args)
-    if args.mission == "suborbital":
-        return _build_suborbital_config(args)
-    raise ValueError(f"未支持的任务类型: {args.mission}")
+        cfg, phases = _build_projectile_config(args)
+    elif args.mission == "missile":
+        cfg, phases = _build_missile_config(args)
+    elif args.mission == "rocket":
+        cfg, phases = _build_rocket_config(args)
+    elif args.mission == "icbm":
+        cfg, phases = _build_icbm_config(args)
+    elif args.mission == "suborbital":
+        cfg, phases = _build_suborbital_config(args)
+    else:
+        raise ValueError(f"未支持的任务类型: {args.mission}")
+    cfg = _apply_environment_overrides(cfg, args)
+    return cfg, phases
 
 
 def _compute_summary(cfg: SimConfig, result: SimResult) -> Dict[str, Any]:

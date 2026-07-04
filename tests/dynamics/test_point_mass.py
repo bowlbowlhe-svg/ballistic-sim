@@ -123,3 +123,30 @@ def test_coriolis_option_enu() -> None:
     y = np.array([0.0, 0.0, 100.0, 100.0, 0.0, 0.0, 10.0])
     dy = dyn.rhs(0.0, y, ctx)
     assert abs(dy[5]) > 0.0
+
+
+def test_rhs_eci_uses_height_for_wind() -> None:
+    """ECI 模式下 wind(h) 按几何高度调用而非固定 0。"""
+    from ballistic_sim.models.wind import UniformWind
+
+    class LoggingWind(UniformWind):
+        """记录被查询高度的风模型。"""
+
+        def __init__(self):
+            super().__init__()
+            self.heights: list[float] = []
+
+        def __call__(self, h, s=None):
+            self.heights.append(float(h))
+            return super().__call__(h, s)
+
+    wind = LoggingWind()
+    ctx = _make_ctx(frame="ECI", wind=wind)
+    dyn = PointMassDynamics(frame="ECI", mass=10.0, Aref=0.1)
+    r_ecef = geodetic_to_ecef(0.0, 0.0, 100.0)
+    r_eci = ecef_to_eci(r_ecef, 0.0)
+    v_eci = np.array([10.0, 0.0, 0.0])
+    y = np.concatenate([r_eci, v_eci, [10.0]])
+    dyn.rhs(0.0, y, ctx)
+    assert len(wind.heights) >= 1
+    assert all(h > 0.0 for h in wind.heights)

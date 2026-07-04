@@ -24,7 +24,9 @@ def build_phases(cfg: SimConfig) -> List[Phase]:
 
 def _build_projectile_phases(cfg: SimConfig) -> List[Phase]:
     from ballistic_sim.dynamics.mpm import MPMDynamics
+    from ballistic_sim.simulator import _resolve_terrain
 
+    terrain = _resolve_terrain(cfg)
     opt = MPMOptions(
         use_drag=True,
         use_wind=bool(cfg.environment.wind_m_s),
@@ -50,17 +52,26 @@ def _build_projectile_phases(cfg: SimConfig) -> List[Phase]:
             guidance=None,
             m_dry=cfg.vehicle.mass_kg,
             sep_name="落地",
+            terrain=terrain,
+            lat0=cfg.launch.lat_deg,
+            lon0=cfg.launch.lon_deg,
         ),
         TerminalPhase(
             name="终点",
             t_span=(cfg.launch.t0_s, cfg.launch.t0_s + 3000.0),
             dynamics=dyn,
+            terrain=terrain,
+            lat0=cfg.launch.lat_deg,
+            lon0=cfg.launch.lon_deg,
         ),
     ]
 
 
 def _build_rocket_phases(cfg: SimConfig) -> List[Phase]:
     from ballistic_sim.dynamics.powered_eci import PoweredECIDynamics
+    from ballistic_sim.simulator import _resolve_terrain
+
+    terrain = _resolve_terrain(cfg)
 
     # 简化：单级动力 + 滑行 + 终端；真实 CZ-2F 在 MVP 脚本中手动构建。
     stage = {
@@ -89,11 +100,17 @@ def _build_rocket_phases(cfg: SimConfig) -> List[Phase]:
             guidance=guidance,
             m_dry=float(stage["m_dry"]),
             sep_name="燃尽",
+            terrain=terrain,
+            lat0=cfg.launch.lat_deg,
+            lon0=cfg.launch.lon_deg,
         ),
         CoastingPhase(
             name="滑行",
             t_span=(cfg.launch.t0_s, cfg.launch.t0_s + 3600.0),
             dynamics=dyn,
+            terrain=terrain,
+            lat0=cfg.launch.lat_deg,
+            lon0=cfg.launch.lon_deg,
         ),
     ]
     if cfg.options.sixdof_reentry:
@@ -116,6 +133,9 @@ def _build_rocket_phases(cfg: SimConfig) -> List[Phase]:
                 t_span=(cfg.launch.t0_s, cfg.launch.t0_s + 7200.0),
                 dynamics=six_dof_dyn,
                 fidelity="sixdof",
+                terrain=terrain,
+                lat0=cfg.launch.lat_deg,
+                lon0=cfg.launch.lon_deg,
             )
         )
     phases.append(
@@ -123,6 +143,9 @@ def _build_rocket_phases(cfg: SimConfig) -> List[Phase]:
             name="轨道插入",
             t_span=(cfg.launch.t0_s, cfg.launch.t0_s + 3600.0),
             dynamics=dyn,
+            terrain=terrain,
+            lat0=cfg.launch.lat_deg,
+            lon0=cfg.launch.lon_deg,
         ),
     )
     return phases
