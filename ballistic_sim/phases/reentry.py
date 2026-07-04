@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import List
+from dataclasses import dataclass, field
+from typing import Any, Dict, List
 
 
 from ballistic_sim.phases.base import Phase
@@ -19,8 +19,14 @@ class ReentryPhase(Phase):
     """
 
     fidelity: str = "point_mass"
+    projection_extras: Dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
+        if self.fidelity == "sixdof":
+            if self.dynamics.state_dim() != 13 or self.dynamics.native_frame() != "ENU":
+                raise ValueError("sixdof 再入段要求 dynamics 为 13 维 ENU（SixDOFDynamics）")
+            if not self.projection_extras:
+                self.projection_extras = {"allow_auto": True}
         if not self.events:
             self.events = [make_ground_event(frame=self.native_frame())]
 

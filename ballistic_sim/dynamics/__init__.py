@@ -14,6 +14,7 @@ from ballistic_sim.dynamics.common import (
 from ballistic_sim.dynamics.point_mass import PointMassDynamics
 from ballistic_sim.dynamics.mpm import MPMDynamics
 from ballistic_sim.dynamics.powered_eci import PoweredECIDynamics
+from ballistic_sim.dynamics.six_dof import SixDOFDynamics
 
 __all__ = [
     "AeroEnv",
@@ -26,4 +27,5 @@ __all__ = [
     "PointMassDynamics",
     "MPMDynamics",
     "PoweredECIDynamics",
+    "SixDOFDynamics",
 ]

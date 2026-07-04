@@ -9,6 +9,7 @@ from ballistic_sim.dynamics.mpm import MPMOptions
 from ballistic_sim.phases.base import Phase
 from ballistic_sim.phases.coasting import CoastingPhase
 from ballistic_sim.phases.powered import PoweredPhase
+from ballistic_sim.phases.reentry import ReentryPhase
 from ballistic_sim.phases.terminal import TerminalPhase
 
 
@@ -80,7 +81,7 @@ def _build_rocket_phases(cfg: SimConfig) -> List[Phase]:
     }
     dyn = PoweredECIDynamics(stage=stage, guidance=guidance)
     t_burn_est = float(stage["m_prop"]) / dyn.prop.mdot
-    return [
+    phases: List[Phase] = [
         PoweredPhase(
             name="动力上升",
             t_span=(cfg.launch.t0_s, cfg.launch.t0_s + t_burn_est * 2.0),
@@ -94,9 +95,34 @@ def _build_rocket_phases(cfg: SimConfig) -> List[Phase]:
             t_span=(cfg.launch.t0_s, cfg.launch.t0_s + 3600.0),
             dynamics=dyn,
         ),
+    ]
+    if cfg.options.sixdof_reentry:
+        from ballistic_sim.dynamics.six_dof import SixDOFDynamics
+
+        six_dof_dyn = SixDOFDynamics(
+            mass_kg=float(stage["m_dry"]),
+            diameter_m=cfg.vehicle.diameter_m,
+            form_factor=cfg.vehicle.cd or 1.0,
+            Ix=cfg.vehicle.Ix or 0.1,
+            It=cfg.vehicle.It or 1.0,
+            x_cp_cg=cfg.vehicle.x_cp_cg or 0.05,
+            lat_deg=cfg.launch.lat_deg,
+            twist_cal=cfg.vehicle.twist_cal or 20.0,
+            options={"drag": True, "gravity": True, "coriolis": True, "thrust": False},
+        )
+        phases.append(
+            ReentryPhase(
+                name="再入段",
+                t_span=(cfg.launch.t0_s, cfg.launch.t0_s + 7200.0),
+                dynamics=six_dof_dyn,
+                fidelity="sixdof",
+            )
+        )
+    phases.append(
         TerminalPhase(
             name="轨道插入",
             t_span=(cfg.launch.t0_s, cfg.launch.t0_s + 3600.0),
             dynamics=dyn,
         ),
-    ]
+    )
+    return phases

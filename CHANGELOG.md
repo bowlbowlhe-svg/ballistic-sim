@@ -61,4 +61,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 | `v0.1.0-stage4` | 阶段 4 | 入口与可视化（CLI、viz 纯函数、YAML 预设） |
 | `v0.1.0` | 阶段 5 | 验证、对拍与收尾（文档、CHANGELOG、bug 修复、flake8/mypy 全绿、覆盖率 86%） |
 
+## [0.2.0] - Unreleased
+
+### Added
+
+- **6-DOF 刚体动力学**：新增 `ballistic_sim/dynamics/six_dof.py`，状态向量 13 维 `[r(3), v(3), q(4), omega_y, omega_z, p]`，支持轴对称弹、四元数姿态、气动力/力矩、控制矩注入。
+- **6-DOF 状态切换**：`state_switch.py` 支持 6-DOF ↔ 3-DOF/MPM 显式投影，7→13 升维默认禁止，但允许 `allow_auto=True` 沿速度方向构造姿态（用于再入段）。
+- **6-DOF 再入段集成**：`ReentryPhase` 支持 `fidelity="sixdof"`，`builder.py` 可通过 `OptionsConfig(sixdof_reentry=True)` 自动插入 sixdof 再入段。
+- **6-DOF 测试套件**：新增 `tests/dynamics/test_six_dof*.py`、`tests/test_sixdof_vs_mpm.py`、`tests/test_sixdof_reentry_builder.py`，覆盖单元测试、四元数代数、控制律、已知失效回归、MPM 对拍、阶段链集成。
+- **VehicleConfig 6-DOF 字段**：`Ix`、`It`、`x_cp_cg`、`twist_cal`。
+
+### Changed
+
+- `SixDOFControl` 下标约定适配 13 维状态。
+- `OptionsConfig` 新增 `sixdof_reentry` 开关。
+
+### Known Limitations
+
+- 6-DOF 再入段默认采用零攻角、零横向角速度初始化；非零攻角再入需调用方显式提供 `quat`/`omega`。
+- 高动态压力再入（>10 km/s）下积分步长可能过小，需进一步调优 `max_step` 与阻尼模型。
+
+### Version Milestones
+
+| Tag | Stage | Description |
+|-----|-------|-------------|
+| `v0.2.0-stage1` | 阶段 2.1 | 6-DOF 闭环动力学与高保真再入（MVP） |
+
+[0.2.0]: https://github.com/bowlbowlhe-svg/ballistic-sim/releases/tag/v0.2.0
 [0.1.0]: https://github.com/bowlbowlhe-svg/ballistic-sim/releases/tag/v0.1.0

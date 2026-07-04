@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import logging
-from typing import Tuple
+import warnings
+from typing import Optional, Tuple
 
 import numpy as np
 
@@ -21,6 +22,33 @@ logger = logging.getLogger(__name__)
 
 class StateSwitchError(NotImplementedError):
     """禁止的状态切换方向。"""
+
+
+def _normalize_quat(q: np.ndarray) -> np.ndarray:
+    """归一化四元数，零四元数返回单位四元数。"""
+    norm = float(np.linalg.norm(q))
+    if norm < 1e-12:
+        return np.array([0.0, 0.0, 0.0, 1.0], dtype=float)
+    return q / norm
+
+
+def _quat_from_vectors(v_from: np.ndarray, v_to: np.ndarray) -> np.ndarray:
+    """构造将 ``v_from`` 旋转到 ``v_to`` 的最短路径四元数 (scalar last [x,y,z,w])."""
+    v_from = np.asarray(v_from, dtype=float)
+    v_to = np.asarray(v_to, dtype=float)
+    v_from = v_from / (np.linalg.norm(v_from) + 1e-12)
+    v_to = v_to / (np.linalg.norm(v_to) + 1e-12)
+    dot = float(np.clip(np.dot(v_from, v_to), -1.0, 1.0))
+    if dot > 0.999999:
+        return np.array([0.0, 0.0, 0.0, 1.0], dtype=float)
+    axis = np.cross(v_from, v_to)
+    axis = axis / (np.linalg.norm(axis) + 1e-12)
+    angle = float(np.arccos(dot))
+    s = float(np.sin(angle / 2.0))
+    return np.array(
+        [axis[0] * s, axis[1] * s, axis[2] * s, np.cos(angle / 2.0)],
+        dtype=float,
+    )
 
 
 def _roundtrip_check(
@@ -96,10 +124,17 @@ def project_state(
     h0: float = 0.0,
     spin_rate: float = 0.0,
     t: float = 0.0,
+    mass_kg: Optional[float] = None,
+    quat: Optional[np.ndarray] = None,
+    omega: Optional[np.ndarray] = None,
+    allow_auto: bool = False,
 ) -> np.ndarray:
     """将源状态投影到目标状态。
 
     支持 §6.4 允许的切换方向；禁止方向抛出 ``NotImplementedError``。
+    6-DOF 状态不包含质量，因此 13 -> 7 降维需要显式传入 ``mass_kg``；
+    3-DOF -> 6-DOF 升维需要显式传入 ``quat``（以及可选的 ``omega``），
+    或由调用方设置 ``allow_auto=True`` 默认沿速度方向构造姿态。
     """
     y_src = np.asarray(y_src, dtype=float)
 
@@ -153,7 +188,11 @@ def project_state(
     if src_dim == 13 and dst_dim == 7:
         if src_frame == "ENU" and dst_frame == "ECI":
             raise StateSwitchError("禁止 6-DOF ENU -> 3-DOF ECI：缺乏全局位置信息定义 ECI 坐标")
-        y_dst = y_src[:7].copy()
+        if mass_kg is None:
+            raise StateSwitchError("13 -> 7 降维需要显式传入 mass_kg：6-DOF 状态不携带质量")
+        y_dst = np.zeros(7, dtype=float)
+        y_dst[0:6] = y_src[0:6]
+        y_dst[6] = float(mass_kg)
         return y_dst
 
     # 6-DOF -> MPM (降维)
@@ -169,9 +208,34 @@ def project_state(
     if src_frame == "ENU" and dst_frame == "ECI":
         raise StateSwitchError("禁止 MPM/6-DOF ENU -> 3-DOF ECI：缺乏全局位置信息定义 ECI 坐标")
 
-    # 3-DOF -> 6-DOF 自动升维禁止
+    # 3-DOF -> 6-DOF 显式升维（必须提供 quat 或 allow_auto）
     if src_dim == 7 and dst_dim == 13:
-        raise StateSwitchError("禁止 3-DOF -> 6-DOF 自动升维：需用户显式提供初始姿态")
+        if quat is None:
+            if not allow_auto:
+                raise StateSwitchError("禁止 3-DOF -> 6-DOF 自动升维：需用户显式提供 quat/omega")
+            warnings.warn(
+                "3-DOF -> 6-DOF 升维未显式提供姿态，已默认沿速度方向构造四元数。",
+                stacklevel=2,
+            )
+        q = _normalize_quat(np.asarray(quat, dtype=float)) if quat is not None else None
+        if src_frame == "ECI" and dst_frame == "ENU":
+            r_enu, v_enu = _eci_to_enu(y_src[0:3], y_src[3:6], lat_deg, lon_deg, h0, t)
+        elif src_frame == "ENU" and dst_frame == "ENU":
+            r_enu, v_enu = y_src[0:3].copy(), y_src[3:6].copy()
+        else:
+            raise StateSwitchError(f"未支持的 3-DOF -> 6-DOF 升维: {src_frame} -> {dst_frame}")
+        if q is None:
+            q = _quat_from_vectors(np.array([1.0, 0.0, 0.0], dtype=float), v_enu)
+        if omega is None:
+            w = np.array([0.0, 0.0, spin_rate], dtype=float)
+        else:
+            w = np.asarray(omega, dtype=float).reshape(3)
+        y_dst = np.zeros(13, dtype=float)
+        y_dst[0:3] = r_enu
+        y_dst[3:6] = v_enu
+        y_dst[6:10] = q
+        y_dst[10:13] = w
+        return y_dst
 
     raise StateSwitchError(
         f"未实现的状态切换: dim {src_dim}({src_frame}) -> {dst_dim}({dst_frame})"

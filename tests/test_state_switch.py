@@ -70,11 +70,12 @@ def test_allowed_6dof_to_3dof_eci() -> None:
         dst_dim=7,
         src_frame="ECI",
         dst_frame="ECI",
+        mass_kg=43.0,
     )
     assert y3.size == 7
     assert np.allclose(y3[0:3], y6[0:3], rtol=RTOL)
     assert np.allclose(y3[3:6], y6[3:6], rtol=RTOL)
-    assert y3[6] == y6[6]
+    assert y3[6] == 43.0
 
 
 def test_allowed_3dof_eci_to_3dof_enu() -> None:
@@ -233,10 +234,11 @@ def test_dimension_change_preserves_rvm() -> None:
         dst_dim=7,
         src_frame="ECI",
         dst_frame="ECI",
+        mass_kg=15.0,
     )
     assert np.allclose(y3[0:3], y6[0:3], rtol=RTOL)
     assert np.allclose(y3[3:6], y6[3:6], rtol=RTOL)
-    assert y3[6] == y6[6]
+    assert y3[6] == 15.0
     assert np.isclose(np.linalg.norm(y3[3:6]), np.linalg.norm(y6[3:6]), rtol=RTOL)
 
 
@@ -314,3 +316,49 @@ def test_real_point_mass_frames() -> None:
     enu = PointMassDynamics(frame="ENU")
     assert eci.frame == "ECI"
     assert enu.frame == "ENU"
+
+
+def test_6dof_to_3dof_requires_mass_kg() -> None:
+    """13 -> 7 降维必须显式提供 mass_kg。"""
+    y6 = _make_6dof()
+    with pytest.raises(StateSwitchError):
+        project_state(
+            y_src=y6,
+            src_dim=13,
+            dst_dim=7,
+            src_frame="ECI",
+            dst_frame="ECI",
+        )
+
+
+def test_3dof_enu_to_6dof_explicit_quat() -> None:
+    """3-DOF ENU -> 6-DOF ENU 显式升维需要 quat/omega。"""
+    y3 = _make_3dof_enu()
+    quat = np.array([0.0, 0.0, 0.0, 1.0])
+    omega = np.array([0.0, 0.0, 2500.0])
+    y13 = project_state(
+        y_src=y3,
+        src_dim=7,
+        dst_dim=13,
+        src_frame="ENU",
+        dst_frame="ENU",
+        quat=quat,
+        omega=omega,
+    )
+    assert y13.size == 13
+    assert np.allclose(y13[0:6], y3[0:6], rtol=RTOL)
+    assert np.allclose(y13[6:10], quat, rtol=RTOL)
+    assert np.allclose(y13[10:13], omega, rtol=RTOL)
+
+
+def test_3dof_to_6dof_auto_upgrade_forbidden() -> None:
+    """未提供 quat 时禁止 3-DOF -> 6-DOF 自动升维。"""
+    y3 = _make_3dof_enu()
+    with pytest.raises(StateSwitchError):
+        project_state(
+            y_src=y3,
+            src_dim=7,
+            dst_dim=13,
+            src_frame="ENU",
+            dst_frame="ENU",
+        )

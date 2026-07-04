@@ -12,11 +12,17 @@
 
 | 旧项目 | 旧文件/模块 | 目标位置 | 状态 | 备注 |
 |--------|------------|----------|------|------|
-| 外弹道方程 | `constants.py` | `ballistic_sim/models/constants.py` | ⬜ 待迁移 | 合并大气、地球、单位常量 |
-| 外弹道方程 | `atmosphere.py` | `ballistic_sim/models/atmosphere.py` | ⬜ 待迁移 | 标准大气模型 |
-| 火箭仿真程序 | `rocket.py` | `ballistic_sim/dynamics/six_dof.py` | ⬜ 待迁移 | 6-DOF 动力学 |
-| 火箭仿真程序 | `guidance.py` | `ballistic_sim/guidance/` | ⬜ 待迁移 | 制导律 |
-| 火箭仿真程序 | `visualization.py` | `ballistic_sim/viz/` | ⬜ 待迁移 | 可视化 |
+| 外弹道方程 | `constants.py` | `ballistic_sim/constants.py` | ✅ 已完成 | v0.1.0 已合并 WGS84/ISA/单位常量 |
+| 外弹道方程 | `atmosphere.py` | `ballistic_sim/models/atmosphere.py` | ✅ 已完成 | v0.1.0 ISA/US76 + 86km 指数延拓 |
+| 外弹道方程 | `sixdof.py` | `ballistic_sim/dynamics/six_dof.py` | ✅ 已完成 | v0.2.0-stage1 迁移 13 维 6-DOF 刚体动力学 |
+| 外弹道方程 | `mpm.py` | `ballistic_sim/dynamics/mpm.py` | ✅ 已完成 | v0.1.0-stage2 修正质点模型 |
+| 外弹道方程 | `wind.py` / `wind_field.py` | `ballistic_sim/models/wind.py` | ✅ 已完成 | v0.1.0-stage1 多风模型 + GRIB2 导入守卫 |
+| 外弹道方程 | `terrain.py` / `srtm.py` | `ballistic_sim/models/terrain.py` | ✅ 已完成 | v0.1.0-stage1 程序化/SRTM/GeoTIFF/Null 地形 |
+| 外弹道方程 | `firecontrol.py` | `ballistic_sim/guidance/firecontrol.py` | ✅ 已完成 | v0.1.0-stage3 火炮诸元解算 |
+| 外弹道方程 | `control.py` / 鸭舵/脉冲 | `ballistic_sim/guidance/control.py` | ✅ 已完成 | v0.1.0-stage3 接口 + v0.2.0-stage1 接入动力学 |
+| 火箭仿真程序 | `rocket.py` / `propulsion.py` | `ballistic_sim/dynamics/powered_eci.py` / `models/propulsion.py` | ✅ 已完成 | v0.1.0-stage2/stage3 动力上升 + PEG |
+| 火箭仿真程序 | `guidance.py` | `ballistic_sim/guidance/open_loop.py` / `peg.py` | ✅ 已完成 | v0.1.0-stage3 开环/PEG/圆化 |
+| 火箭仿真程序 | `visualization.py` | `ballistic_sim/viz/` | ✅ 已完成 | v0.1.0-stage4 静态图 + v0.2.0-stage1 6-DOF 姿态扩展预留 |
 
 ## 迁移原则
 

@@ -22,6 +22,11 @@ class VehicleConfig(BaseModel):
     area_ref_m2: Optional[float] = Field(default=None, gt=0, description="参考面积 (m²)")
     thrust_N: Optional[float] = Field(default=None, ge=0, description="推力 (N)")
     burn_time_s: Optional[float] = Field(default=None, gt=0, description="发动机工作时间 (s)")
+    # 6-DOF 可选参数
+    Ix: Optional[float] = Field(default=None, gt=0, description="轴向转动惯量 (kg·m²)")
+    It: Optional[float] = Field(default=None, gt=0, description="横向转动惯量 (kg·m²)")
+    x_cp_cg: Optional[float] = Field(default=None, description="压心距质心距离 (m)，正表示压心在质心前方")
+    twist_cal: Optional[float] = Field(default=None, gt=0, description="缠距 (caliber)")
 
 
 class LaunchConfig(BaseModel):
@@ -91,6 +96,7 @@ class OptionsConfig(BaseModel):
     save_trajectory: bool = Field(default=True, description="保存轨迹")
     output_dir: Optional[str] = Field(default=None, description="输出目录")
     verbose: bool = Field(default=False, description="是否打印详细信息")
+    sixdof_reentry: bool = Field(default=False, description="再入段使用 6-DOF 高保真动力学")
 
 
 class SimConfig(BaseModel):

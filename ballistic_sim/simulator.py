@@ -163,6 +163,7 @@ def simulate(cfg: SimConfig, phases: List[Phase]) -> SimResult:
             src_frame = ph.native_frame()
             dst_frame = next_ph.native_frame()
             if src_dim != dst_dim or src_frame != dst_frame:
+                extras = getattr(next_ph, "projection_extras", {})
                 y0 = project_state(
                     y_end,
                     src_dim=src_dim,
@@ -173,6 +174,7 @@ def simulate(cfg: SimConfig, phases: List[Phase]) -> SimResult:
                     lon_deg=cfg.launch.lon_deg,
                     h0=cfg.launch.alt_m,
                     t=t_abs,
+                    **extras,
                 )
             else:
                 y0 = y_end.copy()

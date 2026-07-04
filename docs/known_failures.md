@@ -17,7 +17,7 @@
 
 | 编号 | 配置/输入 | 现象 | 复现步骤 | 备注 |
 |---|---|---|---|---|
-| KF-001 | D30 炮弹，高射角 QE=50°，东侧风 wind_e=8 m/s，模型选 6-DOF | 历史上 RK45 步长坍缩，姿态四元数积分发散，``SixDOFModel.simulate`` 抛出 ``RuntimeError("6-DOF 仿真失败")`` | 1. ``cfg = config.build_config("D30", model="6dof", overrides={"qe": 50, "wind_e": 8})``<br>2. ``res = config.simulate(cfg)``<br>或运行 ``pytest tests/test_sixdof.py::test_sixdof_high_qe_crosswind_no_divergence`` | 原项目已知问题；根因为四元数运动学帧约定不一致（世界系角速度误用体系右乘）。已在当前代码修复，现作为回归用例保留。 |
+| KF-001 | D30 炮弹，高射角 QE=50°，东侧风 wind_e=8 m/s，模型选 6-DOF | 历史上 RK45 步长坍缩，姿态四元数积分发散，``SixDOFModel.simulate`` 抛出 ``RuntimeError("6-DOF 仿真失败")`` | 1. 构造 ``SixDOFDynamics``（D30 参数）<br>2. ``initial_state(v0=690, theta_deg=50, az_deg=90, h0=0)``<br>3. 设置 ``UniformWind(e=8)`` 并积分<br>或运行 ``pytest tests/dynamics/test_six_dof_known_failures.py::test_kf_001_d30_high_qe_crosswind_lands`` | **v0.2.0-stage1 已修复**：统一采用 scalar-last、世界系角速度左乘四元数导数，并加入四元数归一化。现为回归用例。 |
 
 ## 待验证 / 风险区域
 
