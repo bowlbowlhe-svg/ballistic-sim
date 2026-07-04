@@ -11,6 +11,7 @@ import numpy as np
 
 from ballistic_sim.frames import ecef_to_geodetic, eci_to_ecef
 from ballistic_sim.simulator import SimResult
+from ballistic_sim.viz.monte_carlo import plot_dispersion
 
 
 def detect_frame(result: SimResult) -> str:
@@ -139,4 +140,5 @@ __all__ = [
     "mass",
     "attach_launch_lla",
     "wind_contribution",
+    "plot_dispersion",
 ]

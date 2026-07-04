@@ -58,8 +58,8 @@ def _roundtrip_check(
     v_back: np.ndarray,
     speed_tol: float = 1e-6,
 ) -> Tuple[float, float]:
-    pos_err = float(np.linalg.norm(r_back - r_src) / max(np.linalg.norm(r_src), 1e-6))
-    vel_err = float(np.linalg.norm(v_back - v_src) / max(np.linalg.norm(v_src), 1e-6))
+    pos_err = float(np.linalg.norm(r_back - r_src) / max(float(np.linalg.norm(r_src)), 1e-6))
+    vel_err = float(np.linalg.norm(v_back - v_src) / max(float(np.linalg.norm(v_src)), 1e-6))
     if pos_err > 1e-9 or vel_err > 1e-9:
         logger.warning(
             "状态切换往返一致性误差: pos_err=%.3e, vel_err=%.3e",

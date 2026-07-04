@@ -8,6 +8,68 @@ from typing import Any, List, Literal, Optional
 from pydantic import BaseModel, ConfigDict, Field
 
 
+class DistributionConfig(BaseModel):
+    """参数扰动分布配置。"""
+
+    model_config = ConfigDict(extra="forbid")
+
+    mean: float = Field(default=0.0, description="均值")
+    std: float = Field(default=0.0, ge=0, description="标准差")
+    low: Optional[float] = Field(default=None, description="下界（含）")
+    high: Optional[float] = Field(default=None, description="上界（含）")
+
+
+class PerturbationConfig(BaseModel):
+    """Monte Carlo 输入参数扰动配置。"""
+
+    model_config = ConfigDict(extra="forbid")
+
+    mass_kg: DistributionConfig = Field(
+        default_factory=lambda: DistributionConfig(std=0.0), description="质量扰动 (kg)"
+    )
+    form_factor: DistributionConfig = Field(
+        default_factory=lambda: DistributionConfig(std=0.0), description="阻力系数/形制系数扰动"
+    )
+    v0_m_s: DistributionConfig = Field(
+        default_factory=lambda: DistributionConfig(std=2.0), description="初速扰动 (m/s)"
+    )
+    elevation_deg: DistributionConfig = Field(
+        default_factory=lambda: DistributionConfig(std=0.05), description="发射仰角扰动 (deg)"
+    )
+    azimuth_deg: DistributionConfig = Field(
+        default_factory=lambda: DistributionConfig(std=0.05), description="发射方位角扰动 (deg)"
+    )
+    delta_t: DistributionConfig = Field(
+        default_factory=lambda: DistributionConfig(std=2.0), description="大气温度偏差扰动 (K)"
+    )
+    density_factor: DistributionConfig = Field(
+        default_factory=lambda: DistributionConfig(std=0.02),
+        description="大气密度修正因子扰动 (相对值)",
+    )
+    wind_e: DistributionConfig = Field(
+        default_factory=lambda: DistributionConfig(std=1.0), description="东风分量扰动 (m/s)"
+    )
+    wind_n: DistributionConfig = Field(
+        default_factory=lambda: DistributionConfig(std=1.0), description="北风分量扰动 (m/s)"
+    )
+
+
+class MonteCarloConfig(BaseModel):
+    """Monte Carlo 仿真选项。"""
+
+    model_config = ConfigDict(extra="forbid")
+
+    num_samples: int = Field(default=100, gt=0, description="样本数")
+    backend: str = Field(
+        default="auto",
+        pattern=r"^(auto|process|batch|gpu)$",
+        description="计算后端：auto/process/batch/gpu",
+    )
+    n_jobs: int = Field(default=-1, description="process 后端并行数，-1 表示自动")
+    seed: int = Field(default=42, description="随机种子")
+    perturbations: Optional[PerturbationConfig] = Field(default=None, description="参数扰动配置")
+
+
 class VehicleConfig(BaseModel):
     """飞行器装配参数。
 
@@ -25,7 +87,9 @@ class VehicleConfig(BaseModel):
     # 6-DOF 可选参数
     Ix: Optional[float] = Field(default=None, gt=0, description="轴向转动惯量 (kg·m²)")
     It: Optional[float] = Field(default=None, gt=0, description="横向转动惯量 (kg·m²)")
-    x_cp_cg: Optional[float] = Field(default=None, description="压心距质心距离 (m)，正表示压心在质心前方")
+    x_cp_cg: Optional[float] = Field(
+        default=None, description="压心距质心距离 (m)，正表示压心在质心前方"
+    )
     twist_cal: Optional[float] = Field(default=None, gt=0, description="缠距 (caliber)")
 
 
@@ -64,6 +128,8 @@ class EnvironmentConfig(BaseModel):
     )
     use_terrain: bool = Field(default=False, description="是否启用地形")
     terrain_path: Optional[str] = Field(default=None, description="地形数据路径")
+    delta_t: float = Field(default=0.0, description="大气温度偏差 (K)")
+    density_factor: float = Field(default=1.0, gt=0, description="大气密度修正因子")
 
 
 class GuidanceConfig(BaseModel):
@@ -97,6 +163,9 @@ class OptionsConfig(BaseModel):
     output_dir: Optional[str] = Field(default=None, description="输出目录")
     verbose: bool = Field(default=False, description="是否打印详细信息")
     sixdof_reentry: bool = Field(default=False, description="再入段使用 6-DOF 高保真动力学")
+    mpm_use_spin: bool = Field(default=True, description="MPM 是否启用自转偏流")
+    mpm_use_dynamic_alpha: bool = Field(default=False, description="MPM 是否启用动态攻角")
+    monte_carlo: Optional[MonteCarloConfig] = Field(default=None, description="Monte Carlo 选项")
 
 
 class SimConfig(BaseModel):

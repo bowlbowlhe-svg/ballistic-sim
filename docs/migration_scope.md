@@ -23,6 +23,10 @@
 | 火箭仿真程序 | `rocket.py` / `propulsion.py` | `ballistic_sim/dynamics/powered_eci.py` / `models/propulsion.py` | ✅ 已完成 | v0.1.0-stage2/stage3 动力上升 + PEG |
 | 火箭仿真程序 | `guidance.py` | `ballistic_sim/guidance/open_loop.py` / `peg.py` | ✅ 已完成 | v0.1.0-stage3 开环/PEG/圆化 |
 | 火箭仿真程序 | `visualization.py` | `ballistic_sim/viz/` | ✅ 已完成 | v0.1.0-stage4 静态图 + v0.2.0-stage1 6-DOF 姿态扩展预留 |
+| 外弹道方程 | `ballistics/batch_mpm.py` | `ballistic_sim/dynamics/batch_mpm.py` | ✅ 已完成 | v0.2.0-stage2.2 NumPy/CuPy 向量化批量 MPM |
+| 外弹道方程 | `ballistics/gpu_mpm.py` | `ballistic_sim/dynamics/gpu_mpm.py` | ✅ 已完成 | v0.2.0-stage2.2 CuPy GPU 批量 MPM |
+| 外弹道方程 | `ballistics/monte_carlo.py` | `ballistic_sim/monte_carlo.py` | ✅ 已完成 | v0.2.0-stage2.2 Monte Carlo 散布分析 |
+| 外弹道方程 | `ballistics/viz/montecarlo_plot.py` | `ballistic_sim/viz/monte_carlo.py` | ✅ 已完成 | v0.2.0-stage2.2 蒙特卡洛落点散布图 |
 
 ## 迁移原则
 

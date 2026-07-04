@@ -30,10 +30,12 @@ from ballistic_sim.presets import (
     rocket_phases,
 )
 from ballistic_sim.simulator import SimResult, simulate
+from ballistic_sim.monte_carlo import PerturbationConfig, monte_carlo_simulation
 from ballistic_sim.viz import (
     altitude,
     attach_launch_lla,
     detect_frame,
+    plot_dispersion,
 )
 
 
@@ -72,6 +74,13 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--no-viz", action="store_true", help="关闭可视化")
     parser.add_argument("--out-dir", type=str, help="输出目录 (默认 out/<mission>_<timestamp>/)")
     parser.add_argument("--no-summary", action="store_true", help="不保存 result_summary.json")
+    parser.add_argument("--monte-carlo", action="store_true", help="启用 Monte Carlo 散布分析")
+    parser.add_argument(
+        "--mc-backend", type=str, default="auto", help="MC 后端 auto/process/batch/gpu"
+    )
+    parser.add_argument("--mc-n-jobs", type=int, default=-1, help="MC process 后端并行数")
+    parser.add_argument("--mc-seed", type=int, default=42, help="MC 随机种子")
+    parser.add_argument("--mc-samples", type=int, default=100, help="MC 样本数")
     return parser.parse_args()
 
 
@@ -523,19 +532,74 @@ def _save_visualizations(result: SimResult, cfg: SimConfig, out_dir: Path) -> Li
     return saved
 
 
+def _mc_summary(mc_result: Any) -> Dict[str, Any]:
+    return {
+        "samples": int(mc_result.samples),
+        "range_mean_m": float(mc_result.range_mean),
+        "range_std_m": float(mc_result.range_std),
+        "cross_mean_m": float(mc_result.cross_mean),
+        "cross_std_m": float(mc_result.cross_std),
+        "cep50_m": float(mc_result.cep50),
+        "cep90_m": float(mc_result.cep90),
+        "ellipse_major_m": float(mc_result.ellipse_major),
+        "ellipse_minor_m": float(mc_result.ellipse_minor),
+        "ellipse_angle_deg": float(mc_result.ellipse_angle),
+    }
+
+
 def main() -> None:
     args = _parse_args()
 
     cfg, phases = _build_config_and_phases(args)
-    result = simulate(cfg, phases=phases)
-    attach_launch_lla(result, cfg.launch.lat_deg, cfg.launch.lon_deg, cfg.launch.alt_m)
-
-    summary = _compute_summary(cfg, result)
 
     out_dir = Path(args.out_dir) if args.out_dir else _default_out_dir(args.mission)
     out_dir.mkdir(parents=True, exist_ok=True)
 
     saved_viz: List[str] = []
+
+    if args.monte_carlo:
+        if args.mc_backend in ("batch", "gpu"):
+            cfg = apply_overrides(cfg, {"options.mpm_use_spin": False})
+        mc_result = monte_carlo_simulation(
+            cfg,
+            perturb=PerturbationConfig(),
+            n_samples=args.mc_samples,
+            backend=args.mc_backend,
+            n_jobs=args.mc_n_jobs,
+            seed=args.mc_seed,
+        )
+        mc_summary = _mc_summary(mc_result)
+
+        if args.viz and not args.no_viz:
+            from matplotlib import use
+
+            use("Agg")
+            fig = plot_dispersion(mc_result)
+            path = out_dir / "montecarlo_plot.png"
+            fig.savefig(path, dpi=150)
+            plt.close(fig)
+            saved_viz.append(str(path))
+
+        if not args.no_summary:
+            summary_path = out_dir / "mc_summary.json"
+            with open(summary_path, "w", encoding="utf-8") as f:
+                json.dump(mc_summary, f, ensure_ascii=False, indent=2)
+            saved_viz.append(str(summary_path))
+
+        print(f"Mission : {args.mission}")
+        print(f"Mode    : Monte Carlo ({args.mc_backend})")
+        print(f"Samples : {mc_result.samples}")
+        print(f"Range   : {mc_result.range_mean / 1e3:.2f} ± {mc_result.range_std / 1e3:.2f} km")
+        print(f"CEP50   : {mc_result.cep50:.1f} m")
+        print(f"CEP90   : {mc_result.cep90:.1f} m")
+        print(f"Output  : {out_dir}")
+        return
+
+    result = simulate(cfg, phases=phases)
+    attach_launch_lla(result, cfg.launch.lat_deg, cfg.launch.lon_deg, cfg.launch.alt_m)
+
+    summary = _compute_summary(cfg, result)
+
     if args.viz and not args.no_viz:
         saved_viz = _save_visualizations(result, cfg, out_dir)
 

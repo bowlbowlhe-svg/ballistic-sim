@@ -1,0 +1,32 @@
+
+=== M107 默认配置 零扰动 (n=200) ===
+process range: 18011.80 ± 220.88 m
+batch   range: 18005.34 ± 226.83 m
+process cross: 18011.74 ± 220.88 m
+batch   cross: 18005.27 ± 226.83 m
+process tof:   69.08 ± 0.35 s
+batch   tof:   69.07 ± 0.36 s
+差异 %:
+  range_mean: 0.0359%
+  range_std: 2.6226%
+  cross_mean: 0.0359%
+  cross_std: 2.6226%
+  tof_mean: 0.0130%
+  tof_std: 2.3769%
+对拍结果: FAIL (<1%)
+
+=== M107 非零扰动 (v0=2m/s, wind=1m/s) (n=200) ===
+process range: 18005.97 ± 205.84 m
+batch   range: 18013.59 ± 230.09 m
+process cross: 18005.89 ± 205.83 m
+batch   cross: 18013.48 ± 230.09 m
+process tof:   69.07 ± 0.35 s
+batch   tof:   69.08 ± 0.38 s
+差异 %:
+  range_mean: 0.0423%
+  range_std: 10.5394%
+  cross_mean: 0.0421%
+  cross_std: 10.5437%
+  tof_mean: 0.0159%
+  tof_std: 8.3218%
+对拍结果: FAIL (<1%)

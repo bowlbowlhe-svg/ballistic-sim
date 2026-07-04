@@ -35,6 +35,8 @@ def _resolve_dynamics_context(cfg: SimConfig) -> DynamicContext:
 
     atm = make_atmosphere(
         cfg.environment.atmosphere,
+        delta_t=cfg.environment.delta_t,
+        density_factor=cfg.environment.density_factor,
     )
     wind = make_wind("uniform")
     if cfg.environment.wind_m_s:
@@ -86,7 +88,7 @@ def simulate(cfg: SimConfig, phases: List[Phase]) -> SimResult:
     t_abs = cfg.launch.t0_s
 
     t_all = [t_abs]
-    y_all = [np.asarray(y0, dtype=float).reshape(1, -1)]
+    y_all: List[np.ndarray] = [np.asarray(y0, dtype=float).reshape(1, -1)]
     event_log: List[Dict[str, Any]] = []
     phase_bounds: List[float] = [t_abs]
     stop_reason = "completed"
@@ -151,7 +153,7 @@ def simulate(cfg: SimConfig, phases: List[Phase]) -> SimResult:
             t_loc = t_loc[1:]
             y_loc = y_loc[:, 1:]
         t_all.extend(t_loc.tolist())
-        y_all.append(y_loc.T)
+        y_all.append(np.asarray(y_loc.T, dtype=float))
 
         phase_bounds.append(t_abs)
 

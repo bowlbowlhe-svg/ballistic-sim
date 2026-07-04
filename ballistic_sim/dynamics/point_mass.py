@@ -51,7 +51,8 @@ class PointMassDynamics:
         else:
             r_ecef = eci_to_ecef(r, 0.0)
             _, _, h = ecef_to_geodetic(r_ecef)
-            w_enu = ctx.wind(h) if ctx.wind is not None else np.zeros(3)
+            w_state = ctx.wind(h) if ctx.wind is not None else None
+            w_enu = np.asarray(w_state) if w_state is not None else np.zeros(3)
             v_rel = relative_velocity_eci(r, v, w_enu, lat0, lon0)
 
         atm = ctx.atmosphere(max(h, 0.0))

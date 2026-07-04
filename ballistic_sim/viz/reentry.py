@@ -16,10 +16,10 @@ def plot(result: SimResult, r_nose_m: float = 0.3) -> Figure:
 
 
 def _sutton_graves_heat_flux(
-    rho: float,
-    v: float,
+    rho: np.ndarray,
+    v: np.ndarray,
     r_nose_m: float = 0.3,
-) -> float:
+) -> np.ndarray:
     """Sutton-Graves 热流估算 (W/m²)。"""
     return 1.83e-4 * np.sqrt(rho / r_nose_m) * (v**3)
 

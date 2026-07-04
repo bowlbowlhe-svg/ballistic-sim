@@ -102,9 +102,7 @@ def test_free_space_energy_conservation() -> None:
         wz = state[11]
         p = state[12]
         return (
-            0.5 * dyn.mass_kg * np.dot(v, v)
-            + 0.5 * dyn.It * (wy**2 + wz**2)
-            + 0.5 * dyn.Ix * p**2
+            0.5 * dyn.mass_kg * np.dot(v, v) + 0.5 * dyn.It * (wy**2 + wz**2) + 0.5 * dyn.Ix * p**2
         )
 
     e0 = kinetic_energy(y0)

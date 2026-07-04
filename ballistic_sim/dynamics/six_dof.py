@@ -309,9 +309,7 @@ class SixDOFDynamics:
 
         # 四元数运动学：世界系角速度左乘
         omega_enu = omega_y * y_b + omega_z * z_b
-        dq = 0.5 * _quat_multiply(
-            np.array([omega_enu[0], omega_enu[1], omega_enu[2], 0.0]), q
-        )
+        dq = 0.5 * _quat_multiply(np.array([omega_enu[0], omega_enu[1], omega_enu[2], 0.0]), q)
 
         return np.concatenate([v, accel, dq, np.array([domega_y, domega_z, dp])])
 

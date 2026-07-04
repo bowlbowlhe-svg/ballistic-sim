@@ -69,23 +69,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 - **6-DOF 状态切换**：`state_switch.py` 支持 6-DOF ↔ 3-DOF/MPM 显式投影，7→13 升维默认禁止，但允许 `allow_auto=True` 沿速度方向构造姿态（用于再入段）。
 - **6-DOF 再入段集成**：`ReentryPhase` 支持 `fidelity="sixdof"`，`builder.py` 可通过 `OptionsConfig(sixdof_reentry=True)` 自动插入 sixdof 再入段。
 - **6-DOF 测试套件**：新增 `tests/dynamics/test_six_dof*.py`、`tests/test_sixdof_vs_mpm.py`、`tests/test_sixdof_reentry_builder.py`，覆盖单元测试、四元数代数、控制律、已知失效回归、MPM 对拍、阶段链集成。
+- **Monte Carlo 散布分析**：新增 `ballistic_sim/monte_carlo.py`，提供 `Distribution`、`PerturbationConfig`、`DispersionResult` 与 `monte_carlo_simulation`，支持 `auto/process/batch/gpu` 四种后端。
+- **批量 MPM**：新增 `ballistic_sim/dynamics/batch_mpm.py`，6 维状态向量化 RK4 积分，自包含 ISA 大气与线性插值阻力表，支持 NumPy/CuPy 后端切换。
+- **GPU 批量 MPM**：新增 `ballistic_sim/dynamics/gpu_mpm.py`，`GPUBatchMPMModel` 继承 `BatchMPMModel` 并使用 `require_cupy()` 导入守卫。
+- **Monte Carlo 可视化**：新增 `ballistic_sim/viz/monte_carlo.py`，`plot_dispersion` 绘制落点云、CEP50/CEP90 圆与 2σ 散布椭圆。
+- **CLI Monte Carlo 支持**：`ballistic_sim/cli.py` 新增 `--monte-carlo`、`--mc-backend`、`--mc-n-jobs`、`--mc-seed`、`--mc-samples`，输出 `mc_summary.json` 与 `montecarlo_plot.png`。
+- **配置扩展**：`OptionsConfig` 新增 `mpm_use_spin`、`mpm_use_dynamic_alpha`、`monte_carlo`；`EnvironmentConfig` 新增 `delta_t`、`density_factor`；新增 `MonteCarloConfig`、`DistributionConfig`、`PerturbationConfig`。
+- **Monte Carlo 与批量 MPM 测试**：新增 `tests/dynamics/test_batch_mpm.py`、`tests/test_monte_carlo.py`、`tests/viz/test_monte_carlo_plot.py`，并在 `tests/test_cli.py` 补充 MC 参数测试。
 - **VehicleConfig 6-DOF 字段**：`Ix`、`It`、`x_cp_cg`、`twist_cal`。
 
 ### Changed
 
 - `SixDOFControl` 下标约定适配 13 维状态。
 - `OptionsConfig` 新增 `sixdof_reentry` 开关。
+- `phases/builder.py` 的 MPM 相位构造现在读取 `cfg.options.mpm_use_spin` 与 `cfg.options.mpm_use_dynamic_alpha`。
+- `simulator.py` 的 `make_atmosphere` 调用透传 `delta_t` 与 `density_factor`。
 
 ### Known Limitations
 
 - 6-DOF 再入段默认采用零攻角、零横向角速度初始化；非零攻角再入需调用方显式提供 `quat`/`omega`。
 - 高动态压力再入（>10 km/s）下积分步长可能过小，需进一步调优 `max_step` 与阻尼模型。
+- batch/gpu 后端为统计近似模型，忽略自转偏流与动态攻角，仅支持 projectile 任务与 UniformWind。
+- GPU 后端依赖 CuPy/CUDA，无对应环境时自动跳过或抛出 ImportError/RuntimeError。
 
 ### Version Milestones
 
 | Tag | Stage | Description |
 |-----|-------|-------------|
 | `v0.2.0-stage1` | 阶段 2.1 | 6-DOF 闭环动力学与高保真再入（MVP） |
+| `v0.2.0-stage2.2` | 阶段 2.2 | Monte Carlo 散布分析与 GPU/CPU 批量 MPM 仿真 |
 
 [0.2.0]: https://github.com/bowlbowlhe-svg/ballistic-sim/releases/tag/v0.2.0
 [0.1.0]: https://github.com/bowlbowlhe-svg/ballistic-sim/releases/tag/v0.1.0

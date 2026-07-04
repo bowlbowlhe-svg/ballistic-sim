@@ -80,3 +80,29 @@ def test_cli_help_returns_zero(monkeypatch) -> None:
     with pytest.raises(SystemExit) as exc_info:
         main()
     assert exc_info.value.code == 0
+
+
+def test_cli_monte_carlo_outputs_cep50(tmp_path: Path, monkeypatch, capsys) -> None:
+    """``--monte-carlo`` should output CEP50 and generate a PNG."""
+    _run_cli(
+        monkeypatch,
+        [
+            "--mission",
+            "projectile",
+            "--preset",
+            "M107",
+            "--qe",
+            "800",
+            "--az",
+            "45",
+            "--monte-carlo",
+            "--mc-samples",
+            "20",
+            "--mc-backend",
+            "batch",
+        ],
+        tmp_path,
+    )
+    captured = capsys.readouterr()
+    assert "CEP50" in captured.out
+    assert _pngs_in(tmp_path), "No Monte Carlo PNG generated"
