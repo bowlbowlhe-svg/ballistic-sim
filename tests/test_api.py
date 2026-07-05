@@ -24,7 +24,9 @@ def test_health_endpoint(client: TestClient) -> None:
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "ok"
-    assert data["version"] == "0.1.0"
+    from ballistic_sim import __version__
+
+    assert data["version"] == __version__
 
 
 def test_root_serves_index_html(client: TestClient) -> None:
