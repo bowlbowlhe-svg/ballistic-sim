@@ -16,7 +16,8 @@ from ballistic_sim.dynamics.common import ModelCache
 from ballistic_sim.models.aerodynamics import make_aero
 from ballistic_sim.models.atmosphere import make_atmosphere
 from ballistic_sim.models.wind import UniformWind
-from ballistic_sim.simulator import _resolve_dynamics_context, simulate
+from ballistic_sim.context import _resolve_dynamics_context
+from ballistic_sim.simulator import simulate
 
 
 def test_cache_stores_atmosphere_queries() -> None:

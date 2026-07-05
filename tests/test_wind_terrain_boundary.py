@@ -33,7 +33,8 @@ from ballistic_sim.phases.coasting import CoastingPhase
 from ballistic_sim.phases.events import make_ground_event
 from ballistic_sim.phases.powered import PoweredPhase
 from ballistic_sim.phases.terminal import TerminalPhase
-from ballistic_sim.simulator import _resolve_terrain, _resolve_wind, simulate
+from ballistic_sim.context import _resolve_terrain, _resolve_wind
+from ballistic_sim.simulator import simulate
 
 
 def _make_cfg(env: EnvironmentConfig | None = None) -> SimConfig:

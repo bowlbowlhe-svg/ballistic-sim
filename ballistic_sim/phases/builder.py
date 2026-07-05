@@ -126,7 +126,7 @@ def build_phases_legacy(cfg: SimConfig) -> List[Phase]:
 
 def _build_projectile_phases(cfg: SimConfig) -> List[Phase]:
     from ballistic_sim.dynamics.mpm import MPMDynamics
-    from ballistic_sim.simulator import _resolve_terrain
+    from ballistic_sim.context import _resolve_terrain
 
     terrain = _resolve_terrain(cfg)
     opt = MPMOptions(
@@ -183,7 +183,7 @@ def _build_rocket_phases(cfg: SimConfig) -> List[Phase]:
 
 def _build_rocket_phases_legacy(cfg: SimConfig) -> List[Phase]:
     from ballistic_sim.dynamics.powered_eci import PoweredECIDynamics
-    from ballistic_sim.simulator import _resolve_terrain
+    from ballistic_sim.context import _resolve_terrain
 
     terrain = _resolve_terrain(cfg)
 
@@ -312,7 +312,7 @@ def _build_multistage_phases(cfg: SimConfig) -> List[Phase]:
     """
     from ballistic_sim.constants import G0_STANDARD
     from ballistic_sim.dynamics.powered_eci import PoweredECIDynamics
-    from ballistic_sim.simulator import _resolve_terrain
+    from ballistic_sim.context import _resolve_terrain
 
     terrain = _resolve_terrain(cfg)
     stages = cfg.vehicle.stages
