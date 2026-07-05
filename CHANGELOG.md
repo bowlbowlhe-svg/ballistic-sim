@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/).
 
+## [0.4.0] - 2026-07-05
+
+### Changed
+
+- 统一公共 API 入口：`ballistic_sim/__init__.py` 暴露 `SimConfig`、`simulate`、`build_phases`、`validate_config`、`load_config`、`save_config`、`apply_overrides`、`PerturbationConfig`、`SimResult` 等核心符号，并维护 `__all__`。
+- 版本号统一升级为 `0.4.0`：`ballistic_sim/__init__.py`、`pyproject.toml`、`ballistic_sim/api/main.py`、`tests/test_version.py`、`scripts/release_check.py`。
+
 ## [0.3.1] - 2026-07-05
 
 ### Fixed

@@ -280,7 +280,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="Ballistic Sim API",
         description="Web API for ballistic flight simulation.",
-        version="0.3.1",
+        version="0.4.0",
     )
 
     app.add_middleware(
