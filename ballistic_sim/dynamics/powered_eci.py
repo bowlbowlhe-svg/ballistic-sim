@@ -94,7 +94,7 @@ class PoweredECIDynamics:
         cd = 0.3
         if ctx.aero is not None:
             alpha = compute_alpha(v_rel, v_rel)
-            cd = float(ctx.aero.drag_coefficient(env.Ma, alpha))
+            cd = ctx.cache.aero_coefficient(env.Ma, alpha, ctx.aero.drag_coefficient)
         coeff = -0.5 * env.rho * cd * self.prop.Aref_m2 / mass * vm
         return coeff * v_rel
 
@@ -162,6 +162,8 @@ class PoweredECIDynamics:
         vm = float(np.linalg.norm(v_rel))
         Ma = mach_number(vm, atm.c)
         thrust = self.prop.thrust_at_altitude(h, dyn_ctx.atmosphere)
+        # 复用 RHS 中的加速度计算，避免再次查询大气/风/气动
+        accel = self.rhs(t, y, ctx)[3:6]
         return {
             "h": h,
             "v_inertial": float(np.linalg.norm(v)),
@@ -169,6 +171,6 @@ class PoweredECIDynamics:
             "q": dynamic_pressure(atm.rho, vm),
             "Ma": Ma,
             "thrust": thrust,
-            "accel_g": float(np.linalg.norm(self.rhs(t, y, ctx)[3:6])) / 9.80665,
+            "accel_g": float(np.linalg.norm(accel)) / 9.80665,
             "dir_hat": self._thrust_dir(t, r, v, m),
         }

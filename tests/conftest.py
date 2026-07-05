@@ -6,7 +6,10 @@ import json
 from pathlib import Path
 from typing import Any, Dict
 
+import matplotlib
 import pytest
+
+matplotlib.use("Agg", force=True)
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 GOLDEN_DIR = PROJECT_ROOT / "tests" / "golden"

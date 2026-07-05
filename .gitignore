@@ -23,6 +23,7 @@ ENV/
 out/
 output/
 results/
+benchmark_results.json
 data/cache/
 *_cache/
 .cache/

@@ -251,8 +251,11 @@ class SixDOFDynamics:
         dp = 0.0
 
         if self.options.get("drag", True):
-            CD = self.form_factor * (self._CD0(Ma) + self._CDa2(Ma) * phi**2)
-            CN = self._CNa(Ma) * phi if phi > 1e-6 else 0.0
+            CD0 = dyn_ctx.cache.coefficient("CD0", Ma, self._CD0)
+            CDa2 = dyn_ctx.cache.coefficient("CDa2", Ma, self._CDa2)
+            CNa = dyn_ctx.cache.coefficient("CNa", Ma, self._CNa)
+            CD = self.form_factor * (CD0 + CDa2 * phi**2)
+            CN = CNa * phi if phi > 1e-6 else 0.0
 
             drag_b_mag = CD * qdyn * S
             normal_b_mag = CN * qdyn * S
@@ -268,7 +271,8 @@ class SixDOFDynamics:
             magnus_enu = np.zeros(3, dtype=float)
             if phi > 1e-6 and abs(p) > 1e-6 and v_perp_norm > 1e-12:
                 magnus_dir = np.cross(s, v_perp / v_perp_norm)
-                magnus_enu = self._CYpa(Ma) * qdyn * S * (p * d / V) * magnus_dir
+                CYpa = dyn_ctx.cache.coefficient("CYpa", Ma, self._CYpa)
+                magnus_enu = CYpa * qdyn * S * (p * d / V) * magnus_dir
 
             force_enu = drag_enu + normal_enu + magnus_enu
 
@@ -279,11 +283,13 @@ class SixDOFDynamics:
             moment_z = self.x_cp_cg * normal_b[1]
 
             # 俯仰/偏航阻尼力矩
-            moment_y += self._CMq(Ma) * qdyn * S * d**2 * omega_y / (2.0 * V)
-            moment_z += self._CMq(Ma) * qdyn * S * d**2 * omega_z / (2.0 * V)
+            CMq = dyn_ctx.cache.coefficient("CMq", Ma, self._CMq)
+            moment_y += CMq * qdyn * S * d**2 * omega_y / (2.0 * V)
+            moment_z += CMq * qdyn * S * d**2 * omega_z / (2.0 * V)
 
             # 自转衰减
-            dp = (rho * S * d**2 * V * self._Clp(Ma) / (2.0 * self.Ix)) * p
+            Clp = dyn_ctx.cache.coefficient("Clp", Ma, self._Clp)
+            dp = (rho * S * d**2 * V * Clp / (2.0 * self.Ix)) * p
 
         if self.control is not None:
             ctrl = self.control.control_moment(y, alpha, beta)

@@ -154,22 +154,36 @@ def _resolve_dynamics_context(cfg: SimConfig) -> DynamicContext:
         terrain=terrain,
         gravity_model=cfg.environment.gravity_model,
         options={},
+        use_cache=cfg.options.use_cache,
     )
 
 
-def simulate(cfg: SimConfig, phases: List[Phase]) -> SimResult:
+def simulate(
+    cfg: SimConfig,
+    phases: List[Phase],
+    reuse_context: bool = True,
+) -> SimResult:
     """统一仿真主循环。
 
     按 ``phases`` 顺序逐段调用 ``solve_ivp``，段间通过 ``project_state`` 映射状态，
     拼接全程轨迹并记录事件日志。
+
+    Parameters
+    ----------
+    reuse_context:
+        是否复用 ``cfg`` 上已绑定的动力学上下文。默认 ``True``；若调用方修改了配置
+        并希望重新构建上下文，可传入 ``False``。
     """
     from ballistic_sim.phases.builder import build_phases
 
     if not phases:
         phases = build_phases(cfg)
 
-    dyn_ctx = _resolve_dynamics_context(cfg)
-    cfg._dynamics_context = dyn_ctx  # type: ignore[attr-defined]
+    if reuse_context and getattr(cfg, "_dynamics_context", None) is not None:
+        dyn_ctx = cfg._dynamics_context  # type: ignore[attr-defined]
+    else:
+        dyn_ctx = _resolve_dynamics_context(cfg)
+        cfg._dynamics_context = dyn_ctx  # type: ignore[attr-defined]
 
     method = cfg.options.integrator
     rtol = cfg.options.rtol

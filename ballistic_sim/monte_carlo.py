@@ -14,7 +14,7 @@ from ballistic_sim.config import (
     SimConfig,
     apply_overrides,
 )
-from ballistic_sim.dynamics.batch_mpm import BatchMPMModel
+from ballistic_sim.dynamics.batch_mpm import BatchMPMModel, BatchMPMResult
 from ballistic_sim.dynamics.gpu_mpm import gpu_available
 from ballistic_sim.dynamics.mpm import MPMOptions
 from ballistic_sim.models.aerodynamics import (
@@ -232,15 +232,32 @@ def _perturb_cfg(cfg: SimConfig, perturb: PerturbationConfig, seed: int) -> SimC
 def _run_single_process(
     cfg: SimConfig, seed: int, perturb: PerturbationConfig
 ) -> Optional[SimResult]:
-    """process 后端：单样本仿真。"""
+    """process 后端：单样本仿真。
+
+    提前构建 ``DynamicContext`` 并绑定到配置，使 ``simulate`` 复用缓存上下文，
+    避免每个样本重复解析大气/风/气动模型。
+    """
     try:
         cfg_p = _perturb_cfg(cfg, perturb, seed)
         phases = build_phases(cfg_p)
-        result = simulate(cfg_p, phases=phases)
+        # 显式构建并绑定动力学上下文，启用模型缓存
+        from ballistic_sim.simulator import _resolve_dynamics_context
+
+        cfg_p._dynamics_context = _resolve_dynamics_context(cfg_p)  # type: ignore[attr-defined]
+        result = simulate(cfg_p, phases=phases, reuse_context=True)
         return result
     except Exception as exc:  # noqa: BLE001
         logger.debug("Monte Carlo 样本仿真失败 (seed=%s): %s", seed, exc)
         return None
+
+
+def _run_process_batch(
+    cfg: SimConfig,
+    perturb: PerturbationConfig,
+    seeds: tuple[int, ...],
+) -> list[Optional[SimResult]]:
+    """process 后端：一个批次（多个 seed）的串行仿真。"""
+    return [_run_single_process(cfg, int(seed), perturb) for seed in seeds]
 
 
 def _extract_enu_impact(result: SimResult) -> Optional[tuple[float, float, float, float, float]]:
@@ -269,18 +286,39 @@ def _monte_carlo_process(
     seed: int,
 ) -> DispersionResult:
     """多进程/串行 CPU Monte Carlo."""
+    results: list[Optional[SimResult]]
     if n_jobs == 1:
         results = [_run_single_process(cfg, seed + i, perturb) for i in range(n_samples)]
     else:
+        import sys
         from concurrent.futures import ProcessPoolExecutor
 
         n_workers = n_jobs if n_jobs > 0 else None
-        with ProcessPoolExecutor(max_workers=n_workers) as executor:
+        # 将样本按批次分块，减少进程间调度开销（更粗粒度并行）
+        if n_workers is None:
+            import os
+
+            n_workers = os.cpu_count() or 1
+        chunk_size = max(1, n_samples // n_workers)
+        seed_chunks = [
+            tuple(seed + i for i in range(start, min(start + chunk_size, n_samples)))
+            for start in range(0, n_samples, chunk_size)
+        ]
+
+        executor_kwargs: dict = {"max_workers": n_workers}
+        if sys.version_info >= (3, 11):
+            # 限制每个工作进程处理的任务数，防止长时间运行后内存泄漏
+            executor_kwargs["max_tasks_per_child"] = max(10, chunk_size)
+
+        with ProcessPoolExecutor(**executor_kwargs) as executor:
             futures = [
-                executor.submit(_run_single_process, cfg, seed + i, perturb)
-                for i in range(n_samples)
+                executor.submit(_run_process_batch, cfg, perturb, seeds)
+                for seeds in seed_chunks
             ]
-            results = [f.result() for f in futures]
+            batch_results: list[Optional[SimResult]] = []
+            for f in futures:
+                batch_results.extend(f.result())
+            results = batch_results
 
     valid = []
     for r in results:
@@ -303,14 +341,96 @@ def _monte_carlo_process(
     )
 
 
+def _run_batch_model(
+    mass_kg: np.ndarray,
+    diameter_m: np.ndarray,
+    form_factor: np.ndarray,
+    v0: np.ndarray,
+    theta_deg: np.ndarray,
+    az_deg: np.ndarray,
+    delta_t: np.ndarray,
+    density_factor: np.ndarray,
+    wind_e: np.ndarray,
+    wind_n: np.ndarray,
+    wind_u: np.ndarray,
+    lat_deg: float,
+    h0: float,
+    azimuth_deg: float,
+    drag_table: np.ndarray,
+    options: MPMOptions,
+    use_gpu: bool,
+) -> BatchMPMResult:
+    """构建并运行一个 BatchMPMModel 分块。"""
+    model: BatchMPMModel
+    if use_gpu:
+        from ballistic_sim.dynamics.gpu_mpm import GPUBatchMPMModel
+
+        model = GPUBatchMPMModel(
+            mass_kg=mass_kg,
+            diameter_m=diameter_m,
+            form_factor=form_factor,
+            v0=v0,
+            theta_deg=theta_deg,
+            az_deg=az_deg,
+            delta_t=delta_t,
+            density_factor=density_factor,
+            wind_e=wind_e,
+            wind_n=wind_n,
+            wind_u=wind_u,
+            lat_deg=lat_deg,
+            h0=h0,
+            azimuth_deg=azimuth_deg,
+            drag_table=drag_table,
+            options=options,
+        )
+    else:
+        model = BatchMPMModel(
+            mass_kg=mass_kg,
+            diameter_m=diameter_m,
+            form_factor=form_factor,
+            v0=v0,
+            theta_deg=theta_deg,
+            az_deg=az_deg,
+            delta_t=delta_t,
+            density_factor=density_factor,
+            wind_e=wind_e,
+            wind_n=wind_n,
+            wind_u=wind_u,
+            lat_deg=lat_deg,
+            h0=h0,
+            azimuth_deg=azimuth_deg,
+            drag_table=drag_table,
+            options=options,
+        )
+    return model.simulate()
+
+
+def _concat_batch_results(results: list[BatchMPMResult]) -> BatchMPMResult:
+    """合并多个 BatchMPMResult 分块。"""
+    return BatchMPMResult(
+        range_m=np.concatenate([r.range_m for r in results]),
+        cross_m=np.concatenate([r.cross_m for r in results]),
+        tof=np.concatenate([r.tof for r in results]),
+        v_impact=np.concatenate([r.v_impact for r in results]),
+        impact_angle=np.concatenate([r.impact_angle for r in results]),
+        landed=np.concatenate([r.landed for r in results]),
+        n_samples=sum(r.n_samples for r in results),
+    )
+
+
 def _monte_carlo_batch(
     cfg: SimConfig,
     perturb: PerturbationConfig,
     n_samples: int,
     seed: int,
     use_gpu: bool = False,
+    chunk_size: int = 5000,
 ) -> DispersionResult:
-    """向量化批量 Monte Carlo."""
+    """向量化批量 Monte Carlo。
+
+    当样本数超过 ``chunk_size`` 时，按批次分块运行，避免单个大数组内存占用过高，
+    并为后续粗粒度并行留下扩展点。
+    """
     rng = np.random.default_rng(seed)
 
     base_mass = cfg.vehicle.mass_kg
@@ -336,6 +456,8 @@ def _monte_carlo_batch(
     )
     wind_e = base_wind_e + _dist_from_config(perturb.wind_e).sample_array(rng, n_samples)
     wind_n = base_wind_n + _dist_from_config(perturb.wind_n).sample_array(rng, n_samples)
+    wind_u = np.full(n_samples, base_wind_u)
+    diameter_m = np.full(n_samples, cfg.vehicle.diameter_m)
 
     opt = MPMOptions(
         use_drag=True,
@@ -350,13 +472,11 @@ def _monte_carlo_batch(
     aero = make_aero("g1", cl_slope=0.0)
     drag_table = _extract_drag_table(aero)
 
-    model: BatchMPMModel
-    if use_gpu:
-        from ballistic_sim.dynamics.gpu_mpm import GPUBatchMPMModel
-
-        model = GPUBatchMPMModel(
+    chunk_size = max(1, chunk_size)
+    if n_samples <= chunk_size:
+        res = _run_batch_model(
             mass_kg=mass,
-            diameter_m=np.full(n_samples, cfg.vehicle.diameter_m),
+            diameter_m=diameter_m,
             form_factor=form_factor,
             v0=v0,
             theta_deg=theta,
@@ -365,34 +485,41 @@ def _monte_carlo_batch(
             density_factor=density_factor,
             wind_e=wind_e,
             wind_n=wind_n,
-            wind_u=np.full(n_samples, base_wind_u),
+            wind_u=wind_u,
             lat_deg=cfg.launch.lat_deg,
             h0=cfg.launch.alt_m,
             azimuth_deg=cfg.launch.azimuth_deg,
             drag_table=drag_table,
             options=opt,
+            use_gpu=use_gpu,
         )
     else:
-        model = BatchMPMModel(
-            mass_kg=mass,
-            diameter_m=np.full(n_samples, cfg.vehicle.diameter_m),
-            form_factor=form_factor,
-            v0=v0,
-            theta_deg=theta,
-            az_deg=az,
-            delta_t=delta_t,
-            density_factor=density_factor,
-            wind_e=wind_e,
-            wind_n=wind_n,
-            wind_u=np.full(n_samples, base_wind_u),
-            lat_deg=cfg.launch.lat_deg,
-            h0=cfg.launch.alt_m,
-            azimuth_deg=cfg.launch.azimuth_deg,
-            drag_table=drag_table,
-            options=opt,
-        )
+        chunks: list[BatchMPMResult] = []
+        for start in range(0, n_samples, chunk_size):
+            slc = slice(start, min(start + chunk_size, n_samples))
+            chunks.append(
+                _run_batch_model(
+                    mass_kg=mass[slc],
+                    diameter_m=diameter_m[slc],
+                    form_factor=form_factor[slc],
+                    v0=v0[slc],
+                    theta_deg=theta[slc],
+                    az_deg=az[slc],
+                    delta_t=delta_t[slc],
+                    density_factor=density_factor[slc],
+                    wind_e=wind_e[slc],
+                    wind_n=wind_n[slc],
+                    wind_u=wind_u[slc],
+                    lat_deg=cfg.launch.lat_deg,
+                    h0=cfg.launch.alt_m,
+                    azimuth_deg=cfg.launch.azimuth_deg,
+                    drag_table=drag_table,
+                    options=opt,
+                    use_gpu=use_gpu,
+                )
+            )
+        res = _concat_batch_results(chunks)
 
-    res = model.simulate()
     valid_mask = res.landed & np.isfinite(res.range_m)
     if int(valid_mask.sum()) < 10:
         raise RuntimeError(f"有效样本过少: {int(valid_mask.sum())}/{n_samples}")

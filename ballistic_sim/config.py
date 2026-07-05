@@ -189,6 +189,7 @@ class OptionsConfig(BaseModel):
     sixdof_reentry: bool = Field(default=False, description="再入段使用 6-DOF 高保真动力学")
     mpm_use_spin: bool = Field(default=True, description="MPM 是否启用自转偏流")
     mpm_use_dynamic_alpha: bool = Field(default=False, description="MPM 是否启用动态攻角")
+    use_cache: bool = Field(default=True, description="是否启用动力学上下文模型缓存")
     monte_carlo: Optional[MonteCarloConfig] = Field(default=None, description="Monte Carlo 选项")
 
 

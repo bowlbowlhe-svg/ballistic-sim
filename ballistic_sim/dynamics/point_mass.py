@@ -83,7 +83,7 @@ class PointMassDynamics:
         alpha = 0.0
         if ctx.aero is not None:
             alpha = compute_alpha(v_rel, v_rel)
-            cd = float(ctx.aero.drag_coefficient(env.Ma, alpha))
+            cd = ctx.cache.aero_coefficient(env.Ma, alpha, ctx.aero.drag_coefficient)
         else:
             cd = 0.3
         coeff = -0.5 * env.rho * cd * self.Aref / mass * vm
