@@ -13,7 +13,7 @@ import matplotlib
 import pytest
 from matplotlib.figure import Figure
 
-matplotlib.use("Agg")
+matplotlib.use("Agg", force=True)
 
 from ballistic_sim.presets import cz2f_config, cz2f_phases, m107_config  # noqa: E402
 from ballistic_sim.simulator import SimResult, simulate  # noqa: E402

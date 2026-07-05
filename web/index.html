@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ballistic Sim Web API</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      max-width: 900px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+      line-height: 1.5;
+    }
+    h1 { color: #333; }
+    label { display: block; margin-top: 1rem; font-weight: 600; }
+    select, input, textarea, button {
+      width: 100%;
+      padding: 0.5rem;
+      margin-top: 0.25rem;
+      box-sizing: border-box;
+      font-family: inherit;
+    }
+    textarea { min-height: 200px; }
+    button {
+      margin-top: 1rem;
+      cursor: pointer;
+      background: #0066cc;
+      color: white;
+      border: none;
+      border-radius: 4px;
+    }
+    button:hover { background: #005bb5; }
+    pre {
+      background: #f4f4f4;
+      padding: 1rem;
+      border-radius: 4px;
+      overflow-x: auto;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    @media (max-width: 600px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <h1>Ballistic Sim Web API</h1>
+  <p>通过浏览器调用仿真 API，结果以 JSON 展示。</p>
+
+  <form id="simForm">
+    <label for="mission">任务类型</label>
+    <select id="mission" name="mission">
+      <option value="projectile" selected>projectile</option>
+      <option value="missile">missile</option>
+      <option value="rocket">rocket</option>
+      <option value="icbm">icbm</option>
+      <option value="suborbital">suborbital</option>
+    </select>
+
+    <label for="endpoint">端点</label>
+    <select id="endpoint" name="endpoint">
+      <option value="simulate" selected>/simulate/{mission}</option>
+      <option value="monte-carlo">/simulate/monte-carlo</option>
+      <option value="firecontrol">/firecontrol/solve</option>
+    </select>
+
+    <label for="payload">请求 JSON</label>
+    <textarea id="payload" name="payload">{
+  "launch": {
+    "elevation_deg": 45,
+    "azimuth_deg": 90
+  },
+  "include_trajectory": true
+}</textarea>
+
+    <button type="submit">发送请求</button>
+  </form>
+
+  <h2>响应</h2>
+  <pre id="response">等待请求...</pre>
+
+  <script>
+    const form = document.getElementById('simForm');
+    const missionSelect = document.getElementById('mission');
+    const endpointSelect = document.getElementById('endpoint');
+    const payloadBox = document.getElementById('payload');
+    const responseBox = document.getElementById('response');
+
+    endpointSelect.addEventListener('change', () => {
+      if (endpointSelect.value === 'firecontrol') {
+        payloadBox.value = JSON.stringify({
+          target_lat_deg: 0.05,
+          target_lon_deg: 0.05
+        }, null, 2);
+      } else if (endpointSelect.value === 'monte-carlo') {
+        payloadBox.value = JSON.stringify({
+          mission: 'projectile',
+          launch: { elevation_deg: 45, azimuth_deg: 90 },
+          n_samples: 20,
+          backend: 'batch'
+        }, null, 2);
+      } else {
+        payloadBox.value = JSON.stringify({
+          launch: { elevation_deg: 45, azimuth_deg: 90 },
+          include_trajectory: true
+        }, null, 2);
+      }
+    });
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      responseBox.textContent = '请求中...';
+
+      let url;
+      const endpoint = endpointSelect.value;
+      const mission = missionSelect.value;
+      if (endpoint === 'simulate') {
+        url = `/simulate/${mission}`;
+      } else if (endpoint === 'monte-carlo') {
+        url = '/simulate/monte-carlo';
+      } else {
+        url = '/firecontrol/solve';
+      }
+
+      let body;
+      try {
+        body = JSON.parse(payloadBox.value);
+      } catch (err) {
+        responseBox.textContent = 'JSON 解析错误: ' + err.message;
+        return;
+      }
+
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        responseBox.textContent = JSON.stringify({ status: res.status, body: data }, null, 2);
+      } catch (err) {
+        responseBox.textContent = '网络错误: ' + err.message;
+      }
+    });
+  </script>
+</body>
+</html>

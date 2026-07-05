@@ -103,6 +103,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
     启动 GUI 而非 CLI 运行。GUI 导入采用懒加载，缺失 tkinter 时不破坏 CLI。
   - 新增测试 `tests/test_gui.py`，覆盖导入、表单生成、应用构造、YAML 往返、
     CLI `--gui` 集成；无显示环境时自动 skip。
+- **Web API 与服务（阶段 2.5）**：
+  - 新增 `ballistic_sim/api/` 包：
+    `models.py` 定义请求/响应 pydantic 模型；
+    `dependencies.py` 提供 `require_fastapi()` / `require_uvicorn()` 导入守卫；
+    `main.py` 构造 FastAPI 应用并注册路由；
+    `__main__.py` 支持 `python -m ballistic_sim.api` 启动 uvicorn；
+    `__init__.py` 导出 `create_app()` 与全局 `app` 实例。
+  - API 端点：
+    `GET /health` 健康检查；
+    `POST /simulate/{mission}` 单发仿真（projectile/missile/rocket/icbm/suborbital）；
+    `POST /simulate/monte-carlo` Monte Carlo 散布分析；
+    `POST /firecontrol/solve` 火控诸元反解（projectile/missile）。
+  - 静态文件：`web/index.html` 最小前端表单，调用 API 并展示 JSON 结果；
+    FastAPI 通过 `StaticFiles` 挂载 `web/` 到 `/`。
+  - CORS 默认允许全部来源，便于本地前端联调。
+  - `ballistic_sim/cli.py` 新增 `--serve`、`--host`、`--port`、`--reload`，
+    可通过 `ballistic-sim --serve` 一键启动 Web 服务；API 模块采用懒加载，
+    未安装 fastapi 时不破坏 CLI/GUI。
+  - 静态文件路径基于 `__file__` 解析为绝对路径，确保从任意目录启动都能找到 `web/`。
+  - 新增 `tests/test_api.py`，使用 `fastapi.testclient.TestClient` 覆盖各端点；
+    fastapi 缺失时自动 skip。
+  - 为支持 `TestClient`，在 `.venv` 中安装 `httpx`（测试依赖）。
 
 ### Changed
 
@@ -120,6 +142,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 - GPU 后端依赖 CuPy/CUDA，无对应环境时自动跳过或抛出 ImportError/RuntimeError。
 - GRIB2 空间插值在本阶段未完整实现，`GRIB2WindModel` 仅提供最近高度层兜底。
 - GUI 为阶段 2.4 MVP：当前仅嵌入高度-射程曲线，后续可扩展 3D 轨迹、地面航迹、Monte Carlo 落点图等切换视图。
+- Web API 为阶段 2.5 MVP：当前仅提供核心仿真/火控/Monte Carlo 端点，
+  后续可扩展 YAML 上传下载、任务队列、WebSocket 实时推送等。
 
 ### Version Milestones
 
@@ -129,6 +153,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 | `v0.2.0-stage2.2` | 阶段 2.2 | Monte Carlo 散布分析与 GPU/CPU 批量 MPM 仿真 |
 | `v0.2.0-stage2.3` | 阶段 2.3 | 真实风场与地形集成 |
 | `v0.2.0-stage2.4` | 阶段 2.4 | GUI 可视化入口 |
+| `v0.2.0-stage2.5` | 阶段 2.5 | Web API 与服务 |
 
 [0.2.0]: https://github.com/bowlbowlhe-svg/ballistic-sim/releases/tag/v0.2.0
 [0.1.0]: https://github.com/bowlbowlhe-svg/ballistic-sim/releases/tag/v0.1.0

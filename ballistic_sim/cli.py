@@ -97,6 +97,10 @@ def _parse_args() -> argparse.Namespace:
         help="地形范围 lat_min,lat_max,lon_min,lon_max",
     )
     parser.add_argument("--gui", action="store_true", help="启动图形界面")
+    parser.add_argument("--serve", action="store_true", help="启动 Web API 服务")
+    parser.add_argument("--host", type=str, default="127.0.0.1", help="服务监听地址")
+    parser.add_argument("--port", type=int, default=8000, help="服务监听端口")
+    parser.add_argument("--reload", action="store_true", help="启用热重载")
     return parser.parse_args()
 
 
@@ -598,6 +602,16 @@ def _mc_summary(mc_result: Any) -> Dict[str, Any]:
 def main() -> None:
     args = _parse_args()
 
+    if args.serve:
+        from ballistic_sim.api import create_app
+        from ballistic_sim.api.dependencies import require_uvicorn
+
+        require_uvicorn()
+        import uvicorn
+
+        uvicorn.run(create_app(), host=args.host, port=args.port, reload=args.reload)
+        return
+
     if args.gui:
         from ballistic_sim.gui import run_gui
 
@@ -605,7 +619,7 @@ def main() -> None:
         return
 
     if args.mission is None:
-        raise SystemExit("错误: --mission 是必需参数（--gui 除外）")
+        raise SystemExit("错误: --mission 是必需参数（--gui/--serve 除外）")
 
     cfg, phases = _build_config_and_phases(args)
 
