@@ -5,6 +5,63 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/).
 
+## [0.3.0] - 2026-07-05
+
+### Added
+
+- **性能优化与工程基座（阶段 1）**：
+  - 新增 `ballistic_sim/dynamics/common.py::ModelCache`，缓存大气、风、气动系数插值结果，减少 RHS 重复计算。
+  - `simulator.py` 引入 `_resolve_dynamics_context` 缓存与 `reuse_context` 开关。
+  - `monte_carlo.py` batch/process 后端支持更粗粒度并行与 `maxtasksperchild` 防内存泄漏。
+  - 新增 `scripts/benchmark.py` 性能基准脚本，输出 `benchmark_results.json`。
+  - 新增 `tests/test_performance.py`、`tests/test_cache.py` 覆盖缓存与性能断言。
+- **配置驱动与业务校验强化（阶段 2）**：
+  - `SimConfig` 扩展跨字段校验：T/W > 1、burn_time 与推力匹配、目标经纬度与任务类型匹配、Monte Carlo 参数合理性等。
+  - 新增 `load_config` / `save_config` 支持 YAML/JSON 配置文件作为一等公民。
+  - `phases/builder.py` 重构支持多级 stage 列表，自动插入分离、滑行、再入阶段。
+  - CLI 新增 `--config` 参数；API 新增 `POST /config/validate` 端点。
+  - 新增 `configs/sample_icbm.yaml` 与多份配置示例。
+- **制导律扩展（阶段 3）**：
+  - 新增闭环比例导引 `ballistic_sim/guidance/proportional_navigation.py`（TPN/GPN）。
+  - 新增增广显式制导 `ballistic_sim/guidance/aag.py`。
+  - 新增再入制导 `ballistic_sim/guidance/reentry_guidance.py`（阻力加速度剖面/弹道系数）。
+  - 新增能量管理制导 `ballistic_sim/guidance/energy_management.py`。
+  - `GuidanceConfig.guidance_law` 扩展为 `none | proportional | peg | aag | reentry | energy`。
+- **导弹/火箭预设链完整化（阶段 4）**：
+  - `presets/missiles.yaml`、`presets/rockets.yaml` 扩展多级推力、级间分离、整流罩抛罩、再入飞行器释放。
+  - `phases/events.py` 新增 `make_stage_separation_event`、`make_fairing_jettison_event`。
+  - `state_switch.py` 优化 ECI → ENU → 6-DOF 投影，支持再入点姿态初始化。
+  - 新增完整 ICBM 任务链测试与 CZ 火箭多级分离测试。
+- **实时三维可视化与交互监控（阶段 5）**：
+  - 新增 `ballistic_sim/viz/interactive3d.py`（基于 Plotly）、`viz/earth.py`、`viz/dashboard.py`。
+  - GUI 右侧结果区增加 3D 视图 tab；`web/index.html` 增加 Plotly 3D 地球与轨迹展示。
+  - API 新增 `POST /viz/trajectory3d` 端点，支持 JSON/ECEF 点序列或 HTML 输出。
+- **CI/CD、文档与发布（阶段 6）**：
+  - 新增 `.github/workflows/ci.yml`：Python 3.10/3.11/3.12 矩阵，flake8、pytest（`MPLBACKEND=Agg`）、mypy、coverage（fail-under=80）。
+  - 新增 `.github/workflows/benchmark.yml`：运行 `scripts/benchmark.py` 并上传 artifact。
+  - 新增 `docs/user_guide.md`、`docs/guidance_laws.md`、`docs/performance.md`。
+  - 新增 `scripts/release_check.py` 发布前检查脚本。
+  - 新增 `tests/test_version.py` 统一断言版本号。
+
+### Changed
+
+- `__version__`、`pyproject.toml` 版本号、`FastAPI` 版本号统一为 `0.3.0`。
+- 全局测试基线从 585 提升至 ≥602，整体覆盖率保持 ≥85%。
+- CI 中显式跳过 GPU/显示环境相关测试，避免无 GPU/显示服务时失败。
+
+### Version Milestones
+
+| Tag | Stage | Description |
+|-----|-------|-------------|
+| `v0.3.0-stage1` | 阶段 1 | 性能优化与工程基座 |
+| `v0.3.0-stage2` | 阶段 2 | 配置驱动与业务校验 |
+| `v0.3.0-stage3` | 阶段 3 | 制导律扩展 |
+| `v0.3.0-stage4` | 阶段 4 | 导弹/火箭预设链完整化 |
+| `v0.3.0-stage5` | 阶段 5 | 实时 3D 可视化 |
+| `v0.3.0` | 阶段 6 | CI/CD、文档与正式发布 |
+
+[0.3.0]: https://github.com/bowlbowlhe-svg/ballistic-sim/releases/tag/v0.3.0
+
 ## [0.1.0] - 2026-07-03
 
 ### Added

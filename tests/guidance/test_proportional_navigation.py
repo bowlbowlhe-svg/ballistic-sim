@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from ballistic_sim.constants import WGS84_A
 from ballistic_sim.guidance.proportional_navigation import (
@@ -105,3 +106,73 @@ def test_pro_nav_set_methods_chain() -> None:
     assert pn.set_nav_constant(4.0) is pn
     assert pn.mode == "generalized"
     assert pn.nav_constant == 4.0
+
+
+def test_pro_nav_generalized_mode() -> None:
+    """广义比例导引应返回垂直于速度平面的加速度分量。"""
+    r_rel = np.array([1000.0, 0.0, 0.0])
+    v_rel = np.array([-100.0, 50.0, 0.0])
+    a = pro_nav_acceleration(r_rel, v_rel, nav_constant=3.0, mode="generalized")
+    v_mag = np.linalg.norm(v_rel)
+    projection = np.dot(a, v_rel) / (v_mag * v_mag) * v_rel
+    assert np.allclose(projection, 0.0, atol=1e-6)
+
+
+def test_pro_nav_invalid_mode_raises() -> None:
+    """非法模式应抛出 ValueError。"""
+    with pytest.raises(ValueError, match="未知的比例导引模式"):
+        pro_nav_acceleration(np.ones(3), np.ones(3), mode="unknown")
+
+    pn = ProNavGuidance()
+    with pytest.raises(ValueError, match="模式必须是 true 或 generalized"):
+        pn.set_mode("invalid")
+
+
+def test_pro_nav_zero_distance_returns_zero() -> None:
+    """相对距离接近零时应返回零加速度。"""
+    a = pro_nav_acceleration(np.zeros(3), np.array([100.0, 0.0, 0.0]))
+    assert np.allclose(a, 0.0)
+
+
+def test_pro_nav_nonfinite_returns_zero() -> None:
+    """非有限结果应返回零加速度。"""
+    r_rel = np.array([np.inf, 0.0, 0.0])
+    v_rel = np.array([-100.0, 0.0, 0.0])
+    a = pro_nav_acceleration(r_rel, v_rel)
+    assert np.allclose(a, 0.0)
+
+
+def test_pro_nav_direction_without_target_fails() -> None:
+    """未设置目标时 direction 应失败并返回零矢量。"""
+    pn = ProNavGuidance()
+    direction = pn.direction(0.0, np.zeros(3), np.array([100.0, 0.0, 0.0]))
+    assert pn.failed
+    assert np.allclose(direction, 0.0)
+
+
+def test_pro_nav_direction_with_target() -> None:
+    """设置目标后 direction 应返回单位推力方向。"""
+    pn = ProNavGuidance()
+    pn.set_target(0.0, 0.001, 0.0)
+    direction = pn.direction(
+        0.0,
+        np.array([0.0, 0.0, 0.0]),
+        np.array([100.0, 0.0, 0.0]),
+    )
+    assert np.isclose(np.linalg.norm(direction), 1.0)
+
+
+def test_pro_nav_acceleration_without_target_fails() -> None:
+    """未设置目标时 acceleration 应设置 failed 标志。"""
+    pn = ProNavGuidance()
+    a = pn.acceleration(np.zeros(3), np.array([100.0, 0.0, 0.0]))
+    assert pn.failed
+    assert np.allclose(a, 0.0)
+
+
+def test_pro_nav_max_accel_zero() -> None:
+    """最大加速度为 0 时指令应为零。"""
+    pn = ProNavGuidance(nav_constant=5.0, max_accel_m_s2=0.0)
+    pn.set_target(0.0, 0.001, 0.0)
+    a = pn.acceleration(np.array([0.0, 0.0, 0.0]), np.array([100.0, 0.0, 0.0]))
+    assert np.allclose(a, 0.0)
