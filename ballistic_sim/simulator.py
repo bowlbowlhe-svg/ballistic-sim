@@ -301,13 +301,19 @@ def _postprocess(cfg: SimConfig, result: SimResult) -> Dict[str, Any]:
     """简单后处理。"""
     if result.y.size == 0:
         return {}
+    from ballistic_sim.frames import geodetic_to_ecef
+
+    lat0 = float(cfg.launch.lat_deg)
+    lon0 = float(cfg.launch.lon_deg)
+    r0_ecef = geodetic_to_ecef(lat0, lon0, float(cfg.launch.alt_m))
     y_end = result.y[-1]
-    if y_end.size >= 7:
-        r_end = y_end[0:3]
-        v_end = y_end[3:6]
-        return {
-            "r_end_m": r_end.tolist(),
-            "v_end_m_s": v_end.tolist(),
-            "t_end_s": float(result.t[-1]),
-        }
-    return {}
+    out: Dict[str, Any] = {
+        "lat0": lat0,
+        "lon0": lon0,
+        "r0_ecef": r0_ecef,
+        "t_end_s": float(result.t[-1]),
+    }
+    if y_end.size >= 6:
+        out["r_end_m"] = y_end[0:3].tolist()
+        out["v_end_m_s"] = y_end[3:6].tolist()
+    return out

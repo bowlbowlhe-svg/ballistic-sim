@@ -61,11 +61,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 | `v0.1.0-stage4` | 阶段 4 | 入口与可视化（CLI、viz 纯函数、YAML 预设） |
 | `v0.1.0` | 阶段 5 | 验证、对拍与收尾（文档、CHANGELOG、bug 修复、flake8/mypy 全绿、覆盖率 86%） |
 
-## [0.2.0] - Unreleased
+## [0.2.0] - 2026-07-05
 
 ### Added
 
 - **6-DOF 刚体动力学**：新增 `ballistic_sim/dynamics/six_dof.py`，状态向量 13 维 `[r(3), v(3), q(4), omega_y, omega_z, p]`，支持轴对称弹、四元数姿态、气动力/力矩、控制矩注入。
+- **6-DOF 推力接口**：`SixDOFDynamics` 新增 `thrust_N` 与 `burn_time_s` 字段；`options["thrust"]=True` 时沿弹轴施加轴向推力，`telemetry()` 返回 `thrust_N`。
+- **导弹弹道整形**：`ballistic_sim/guidance/targeting.py` 实现 `max_range_missile`、`solve_missile_range`、`solve_missile_target`，基于 YAML 导弹预设与 PoweredECI 装配链反解 kick/az，支持 minenergy / loft / depressed 分支与 cross-track 误差校验。
+- **后处理补充**：`simulator.py` 的 `_postprocess` 现在输出 `lat0`、`lon0`、`r0_ecef`，为射程 sanity check 与地理 targeting 提供发射点基准。
 - **6-DOF 状态切换**：`state_switch.py` 支持 6-DOF ↔ 3-DOF/MPM 显式投影，7→13 升维默认禁止，但允许 `allow_auto=True` 沿速度方向构造姿态（用于再入段）。
 - **6-DOF 再入段集成**：`ReentryPhase` 支持 `fidelity="sixdof"`，`builder.py` 可通过 `OptionsConfig(sixdof_reentry=True)` 自动插入 sixdof 再入段。
 - **6-DOF 测试套件**：新增 `tests/dynamics/test_six_dof*.py`、`tests/test_sixdof_vs_mpm.py`、`tests/test_sixdof_reentry_builder.py`，覆盖单元测试、四元数代数、控制律、已知失效回归、MPM 对拍、阶段链集成。
@@ -154,6 +157,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 | `v0.2.0-stage2.3` | 阶段 2.3 | 真实风场与地形集成 |
 | `v0.2.0-stage2.4` | 阶段 2.4 | GUI 可视化入口 |
 | `v0.2.0-stage2.5` | 阶段 2.5 | Web API 与服务 |
+| `v0.2.0` | 阶段 2 收尾 | 占位功能补齐、导弹弹道整形、6-DOF 推力接口、版本发布 |
 
 [0.2.0]: https://github.com/bowlbowlhe-svg/ballistic-sim/releases/tag/v0.2.0
 [0.1.0]: https://github.com/bowlbowlhe-svg/ballistic-sim/releases/tag/v0.1.0

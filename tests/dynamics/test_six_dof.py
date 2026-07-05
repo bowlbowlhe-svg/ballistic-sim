@@ -214,3 +214,47 @@ def test_sixdof_xcp_equal_xcg_warning() -> None:
         dyn = _make_d30(x_cp_cg=0.0)
     assert dyn.x_cp_cg == pytest.approx(0.05, abs=1e-12)
     assert any("x_cp_cg" in str(warning.message) for warning in w)
+
+
+def test_sixdof_thrust_accelerates_along_body_axis() -> None:
+    """开启推力选项后，轴向推力沿弹轴产生加速度。"""
+    thrust = 2000.0
+    mass = 10.0
+    burn = 2.0
+    dyn = SixDOFDynamics(
+        mass_kg=mass,
+        diameter_m=0.1,
+        Ix=0.1,
+        It=1.0,
+        thrust_N=thrust,
+        burn_time_s=burn,
+        options={"drag": False, "gravity": True, "coriolis": False, "thrust": True},
+    )
+    ctx = _make_ctx()
+    # 垂直发射（用极小初速保证弹轴朝上）
+    y0 = dyn.initial_state(v0=1.0, theta_deg=90.0, az_deg=0.0)
+    sol = solve_ivp(lambda t, y: dyn.rhs(t, y, ctx), [0.0, 1.0], y0, rtol=1e-9, atol=1e-12)
+    assert sol.success
+    v_u = sol.y[5, -1]
+    # 净加速度 ≈ 推力/mass - g
+    g0 = 9.80665
+    expected = 1.0 + (thrust / mass - g0) * 1.0
+    assert v_u == pytest.approx(expected, rel=0.02)
+
+    tel = dyn.telemetry(0.5, sol.y[:, -1], ctx)
+    assert tel["thrust_N"] == pytest.approx(thrust, rel=1e-12)
+
+
+def test_sixdof_thrust_shuts_off_after_burn_time() -> None:
+    """超过 burn_time_s 后推力应为 0。"""
+    dyn = SixDOFDynamics(
+        mass_kg=10.0,
+        thrust_N=1000.0,
+        burn_time_s=0.5,
+        options={"drag": False, "gravity": False, "coriolis": False, "thrust": True},
+    )
+    ctx = _make_ctx()
+    y0 = dyn.initial_state(v0=0.0, theta_deg=90.0, az_deg=0.0)
+    dy = dyn.rhs(1.0, y0, ctx)
+    # 关闭 drag/gravity/thrust_off 后加速度应为 0
+    assert np.allclose(dy[3:6], 0.0, atol=1e-12)

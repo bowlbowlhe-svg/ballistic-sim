@@ -116,6 +116,8 @@ class SixDOFDynamics:
             "thrust": False,
         }
     )
+    thrust_N: float = 0.0
+    burn_time_s: float = 0.0
 
     def __post_init__(self):
         self.area = float(np.pi * self.diameter_m**2 / 4.0)
@@ -304,6 +306,9 @@ class SixDOFDynamics:
             coriolis[2] = 2.0 * (Omega_n * v[0])
             accel += coriolis
 
+        if self.options.get("thrust", False) and self.thrust_N > 0.0 and t < self.burn_time_s:
+            accel += (self.thrust_N / self.mass_kg) * s
+
         domega_y = moment_y / self.It
         domega_z = moment_z / self.It
 
@@ -333,6 +338,9 @@ class SixDOFDynamics:
         alpha = np.arctan2(w_b, u_b)
         beta = np.arctan2(v_b, u_b)
 
+        thrust_active = float(
+            self.thrust_N if (self.options.get("thrust", False) and t < self.burn_time_s) else 0.0
+        )
         return {
             "h": h,
             "v_inertial": float(np.linalg.norm(v)),
@@ -342,4 +350,5 @@ class SixDOFDynamics:
             "q": env.q,
             "rho": env.rho,
             "spin_rpm": float(p * 60.0 / (2.0 * np.pi)),
+            "thrust_N": thrust_active,
         }
