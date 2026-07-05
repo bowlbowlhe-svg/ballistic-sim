@@ -183,9 +183,7 @@ def test_config_validate_returns_issues(client: TestClient) -> None:
     assert response.status_code == 200
     data = response.json()
     assert isinstance(data, list)
-    assert any(
-        item["severity"] == "ERROR" and "T/W" in item["message"] for item in data
-    )
+    assert any(item["severity"] == "ERROR" and "T/W" in item["message"] for item in data)
 
 
 def test_config_validate_empty_vehicle_ok(client: TestClient) -> None:

@@ -46,11 +46,7 @@ def _quat_with_aoa(v_enu: np.ndarray, aoa_deg: float) -> np.ndarray:
     angle = np.deg2rad(aoa_deg)
     s = np.sin(angle)
     c = np.cos(angle)
-    body_hat = (
-        c * v_hat
-        + s * np.cross(axis, v_hat)
-        + (1.0 - c) * np.dot(axis, v_hat) * axis
-    )
+    body_hat = c * v_hat + s * np.cross(axis, v_hat) + (1.0 - c) * np.dot(axis, v_hat) * axis
     q = _quat_from_vectors(np.array([1.0, 0.0, 0.0]), body_hat)
     return _normalize_quat(q)
 

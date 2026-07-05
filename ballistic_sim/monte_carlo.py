@@ -324,8 +324,7 @@ def _monte_carlo_process(
 
         with ProcessPoolExecutor(**executor_kwargs) as executor:
             futures = [
-                executor.submit(_run_process_batch, cfg, perturb, seeds)
-                for seeds in seed_chunks
+                executor.submit(_run_process_batch, cfg, perturb, seeds) for seeds in seed_chunks
             ]
             batch_results: list[Optional[SimResult]] = []
             for f in futures:

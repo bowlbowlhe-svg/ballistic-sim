@@ -267,9 +267,7 @@ def solve_missile_range(
     tol = max(range_abs_tol_m, range_rel_tol * abs(target_range_m))
 
     # 1) 粗扫描：同时获得最大射程 kick 与所有过靶 bracket
-    records = _scan_kick_range(
-        name, target_range_m, kick_bounds, use_drag, overrides, n_grid=10
-    )
+    records = _scan_kick_range(name, target_range_m, kick_bounds, use_drag, overrides, n_grid=10)
     if not records:
         return {
             "kick_deg": float("nan"),
@@ -456,10 +454,7 @@ def solve_missile_target(
     res_cross = cross
 
     range_tol = max(range_abs_tol_m, range_rel_tol * abs(target_range_m))
-    converged = (
-        abs(res_range) <= range_tol
-        and abs(res_cross) <= cross_abs_tol_m
-    )
+    converged = abs(res_range) <= range_tol and abs(res_cross) <= cross_abs_tol_m
 
     # max_range 参数保留兼容，供调用方复用最大射程信息
     _ = max_range

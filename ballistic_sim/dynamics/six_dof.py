@@ -397,9 +397,7 @@ class SixDOFDynamics:
         alpha = np.arctan2(w_b, u_b)
         beta = np.arctan2(v_b, u_b)
 
-        thrust_active = float(
-            self._thrust_at(t) if self.options.get("thrust", False) else 0.0
-        )
+        thrust_active = float(self._thrust_at(t) if self.options.get("thrust", False) else 0.0)
         return {
             "h": h,
             "v_inertial": float(np.linalg.norm(v)),

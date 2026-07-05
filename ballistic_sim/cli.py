@@ -420,9 +420,7 @@ def _load_config_file(path: str) -> SimConfig:
     return load_config(path)
 
 
-def _apply_common_overrides(
-    cfg: SimConfig, args: argparse.Namespace
-) -> SimConfig:
+def _apply_common_overrides(cfg: SimConfig, args: argparse.Namespace) -> SimConfig:
     """将 CLI 通用参数通过 apply_overrides 注入配置并返回。"""
     if args.qe is not None:
         # 仰角物理上限为 90°, 对非法输入做钳位保护

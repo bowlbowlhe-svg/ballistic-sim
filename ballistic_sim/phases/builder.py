@@ -276,10 +276,7 @@ def _stage_dicts_with_accounting(
     n = len(stages)
     stage_dicts: List[Dict[str, Any]] = []
     for i, s in enumerate(stages):
-        m_above = (
-            sum(stages[j].m_dry + stages[j].m_prop for j in range(i + 1, n))
-            + payload_mass
-        )
+        m_above = sum(stages[j].m_dry + stages[j].m_prop for j in range(i + 1, n)) + payload_mass
         m_dry_phase = s.m_dry + m_above
         m_after_sep = m_dry_phase - s.m_dry
         Aref = s.Aref

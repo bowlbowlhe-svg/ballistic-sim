@@ -12,9 +12,7 @@ def run_gui() -> None:
     try:
         import tkinter as tk
     except ModuleNotFoundError as exc:  # pragma: no cover
-        raise RuntimeError(
-            "GUI 需要 tkinter。请安装带 tkinter 的 Python 发行版。"
-        ) from exc
+        raise RuntimeError("GUI 需要 tkinter。请安装带 tkinter 的 Python 发行版。") from exc
 
     root = tk.Tk()
     app = BallisticGuiApp(root)

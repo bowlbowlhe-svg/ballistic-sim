@@ -110,11 +110,13 @@ class ReentryGuidance:
         # ECI 速度 -> ECEF 速度，再投影到 ENU
         omega = np.array([0.0, 0.0, 7.292115e-5], dtype=float)
         v_ecef = eci_to_ecef(v, 0.0) - np.cross(omega, r_ecef)
-        v_enu = np.array([
-            float(np.dot(v_ecef, e_hat)),
-            float(np.dot(v_ecef, n_hat)),
-            float(np.dot(v_ecef, u_hat)),
-        ])
+        v_enu = np.array(
+            [
+                float(np.dot(v_ecef, e_hat)),
+                float(np.dot(v_ecef, n_hat)),
+                float(np.dot(v_ecef, u_hat)),
+            ]
+        )
         # 简化：用当前位置到目标的大圆方位与速度方位差
         from ballistic_sim.frames import initial_bearing
 
@@ -143,8 +145,12 @@ class ReentryGuidance:
         v = np.asarray(v_eci, dtype=float).reshape(3)
         if not (np.all(np.isfinite(r)) and np.all(np.isfinite(v))):
             self.failed = True
-            return {"bank_deg": 0.0, "aoa_deg": self.nominal_aoa_deg,
-                    "normal_accel": 0.0, "failed": True}
+            return {
+                "bank_deg": 0.0,
+                "aoa_deg": self.nominal_aoa_deg,
+                "normal_accel": 0.0,
+                "failed": True,
+            }
 
         E_now = specific_energy(r, v)
         E_target = self._target_energy()

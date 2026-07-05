@@ -101,11 +101,13 @@ class EnergyManagementGuidance:
         normal_accel = float(np.clip(self.kp * dE, -self.max_normal_accel, self.max_normal_accel))
 
         # 攻角：按法向加速度与 g0 的比值粗略映射
-        aoa_deg = float(np.clip(
-            np.degrees(np.arctan2(abs(normal_accel), _G0)),
-            -self.max_aoa_deg,
-            self.max_aoa_deg,
-        ))
+        aoa_deg = float(
+            np.clip(
+                np.degrees(np.arctan2(abs(normal_accel), _G0)),
+                -self.max_aoa_deg,
+                self.max_aoa_deg,
+            )
+        )
         if normal_accel < 0.0:
             aoa_deg = -aoa_deg
 

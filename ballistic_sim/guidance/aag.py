@@ -123,8 +123,9 @@ def _effective_exhaust_velocity(stage: Dict[str, Any]) -> float:
 
 def _estimate_tgo(vgo_mag: float, m_now: float, thrust: float, ve_eff: float) -> float:
     """由火箭方程估算待飞时间。"""
-    if not (np.isfinite(vgo_mag) and np.isfinite(m_now) and np.isfinite(thrust)
-            and np.isfinite(ve_eff)):
+    if not (
+        np.isfinite(vgo_mag) and np.isfinite(m_now) and np.isfinite(thrust) and np.isfinite(ve_eff)
+    ):
         return float("nan")
     if thrust <= 0.0 or ve_eff <= 0.0 or m_now <= 0.0:
         return float("nan")
@@ -167,8 +168,13 @@ def aag_replan(
     ve_eff = state.ve_eff if state.ve_eff is not None else _effective_exhaust_velocity(stage)
     terminal = state.terminal
 
-    if not (np.all(np.isfinite(r)) and np.all(np.isfinite(v)) and np.isfinite(m_now)
-            and thrust > 0.0 and ve_eff > 0.0):
+    if not (
+        np.all(np.isfinite(r))
+        and np.all(np.isfinite(v))
+        and np.isfinite(m_now)
+        and thrust > 0.0
+        and ve_eff > 0.0
+    ):
         state.failed = True
         return False
 
@@ -206,10 +212,7 @@ def aag_replan(
         omega = v_avg / max(r_mag, 1.0)
         dtheta = float(np.clip(np.linalg.norm(omega) * t_go, -np.pi, np.pi))
         side = _safe_unit(np.cross(local_up(r), v_avg), v_avg)
-        r_T_rot = (
-            np.cos(dtheta) * r_target
-            + np.sin(dtheta) * side * np.linalg.norm(r_target)
-        )
+        r_T_rot = np.cos(dtheta) * r_target + np.sin(dtheta) * side * np.linalg.norm(r_target)
         up_T = local_up(r_T_rot)
 
         # 重新构造终端速度方向

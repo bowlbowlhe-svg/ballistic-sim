@@ -108,9 +108,7 @@ class VehicleConfig(BaseModel):
     area_ref_m2: Optional[float] = Field(default=None, gt=0, description="参考面积 (m²)")
     thrust_N: Optional[float] = Field(default=None, ge=0, description="推力 (N)")
     burn_time_s: Optional[float] = Field(default=None, gt=0, description="发动机工作时间 (s)")
-    stages: Optional[List[StageConfig]] = Field(
-        default=None, description="多级火箭 stage 列表"
-    )
+    stages: Optional[List[StageConfig]] = Field(default=None, description="多级火箭 stage 列表")
     # 6-DOF 可选参数
     Ix: Optional[float] = Field(default=None, gt=0, description="轴向转动惯量 (kg·m²)")
     It: Optional[float] = Field(default=None, gt=0, description="横向转动惯量 (kg·m²)")
@@ -144,9 +142,9 @@ class EnvironmentConfig(BaseModel):
         pattern=r"^(isa|us76|none|gfs)$",
         description="大气模型",
     )
-    wind_model: Literal[
-        "uniform", "log", "power", "profile", "composite", "dryden", "none"
-    ] = Field(default="uniform", description="风场模型类型")
+    wind_model: Literal["uniform", "log", "power", "profile", "composite", "dryden", "none"] = (
+        Field(default="uniform", description="风场模型类型")
+    )
     wind_m_s: List[float] = Field(
         default_factory=lambda: [0.0, 0.0, 0.0],
         description="恒定风矢量 [E, N, U] (m/s)",
@@ -200,13 +198,9 @@ class GuidanceConfig(BaseModel):
     target_lat_deg: Optional[float] = Field(default=None, ge=-90, le=90, description="目标纬度")
     target_lon_deg: Optional[float] = Field(default=None, ge=-180, le=180, description="目标经度")
     target_alt_m: float = Field(default=0.0, description="目标高度 (m)")
-    terminal_velocity_m_s: Optional[float] = Field(
-        default=None, ge=0, description="终端速度 (m/s)"
-    )
+    terminal_velocity_m_s: Optional[float] = Field(default=None, ge=0, description="终端速度 (m/s)")
     terminal_fpa_deg: float = Field(default=0.0, ge=-90, le=90, description="终端弹道倾角 (deg)")
-    energy_target_j_kg: Optional[float] = Field(
-        default=None, description="目标比机械能 (J/kg)"
-    )
+    energy_target_j_kg: Optional[float] = Field(default=None, description="目标比机械能 (J/kg)")
     max_bank_deg: float = Field(default=60.0, ge=0, le=90, description="最大倾侧角 (deg)")
     nominal_aoa_deg: float = Field(default=10.0, ge=-90, le=90, description="标称攻角 (deg)")
     reentry_bank_gain: float = Field(default=1.0e-6, ge=0, description="再入倾侧角增益")
@@ -214,9 +208,7 @@ class GuidanceConfig(BaseModel):
     energy_slope_j_kg_m: float = Field(default=-1.0, description="能量-高度剖面斜率")
     guidance_replan_period: float = Field(default=2.0, gt=0, description="制导重规划周期 (s)")
     aag_max_iter: int = Field(default=30, gt=0, description="AAG 最大迭代次数")
-    aag_position_gain: float = Field(
-        default=0.005, ge=0.0, description="AAG 终端位置反馈增益"
-    )
+    aag_position_gain: float = Field(default=0.005, ge=0.0, description="AAG 终端位置反馈增益")
 
 
 class OptionsConfig(BaseModel):

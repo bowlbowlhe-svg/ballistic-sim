@@ -8,7 +8,6 @@ from typing import Any, Dict, List, Type, Union, cast, get_args, get_origin
 
 from pydantic import BaseModel
 
-
 _Literal = getattr(__import__("typing"), "Literal")
 _Union = getattr(__import__("typing"), "Union")
 

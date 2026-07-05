@@ -144,9 +144,7 @@ def test_mc_small_samples_warning():
     """Monte Carlo 样本数 < 10 报 WARNING。"""
     cfg = SimConfig(
         mission="projectile",
-        options=OptionsConfig(
-            monte_carlo=MonteCarloConfig(num_samples=5, backend="batch")
-        ),
+        options=OptionsConfig(monte_carlo=MonteCarloConfig(num_samples=5, backend="batch")),
     )
     issues = validate_config(cfg)
     issue = _find_issue(issues, "options.monte_carlo.num_samples", "WARNING")
