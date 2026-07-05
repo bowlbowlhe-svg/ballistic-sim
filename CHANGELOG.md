@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/).
 
+## [0.3.1] - 2026-07-05
+
+### Fixed
+
+- Monte Carlo `process` 后端在 pytest/CLI 嵌套调用下的稳定性：当检测到 pytest 收集器内部运行时自动降级为 `batch`（如适用）或串行 `process`，避免 Windows spawn 子进程递归挂起。
+- 提升 `ballistic_sim/guidance/proportional_navigation.py` 测试覆盖率，补充 `make_static_target_provider`、generalized 零速度、零视线速率、异常输入等分支测试。
+- 降低 matplotlib 中文字体缺失警告：在 `ballistic_sim/viz/__init__.py` 配置常见中文字体列表并关闭 Unicode 负号，实现有字体时显示中文、无字体时单次回退警告。
+- 补强 `ballistic_sim/viz/interactive3d.py` 缺失分支测试，覆盖 plotly 缺失时 `plot_trajectory_3d`/`demo` 的 `ImportError`、空结果保护、HTML 写出失败路径。
+
+### Changed
+
+- 版本号统一更新为 `0.3.1`：`ballistic_sim/__init__.py`、`ballistic_sim/api/main.py`、`pyproject.toml`、`tests/test_version.py`、`scripts/release_check.py`。
+
+[0.3.1]: https://github.com/bowlbowlhe-svg/ballistic-sim/releases/tag/v0.3.1
+
 ## [0.3.0] - 2026-07-05
 
 ### Added

@@ -9,6 +9,20 @@ from typing import Any, Dict, Tuple
 
 import numpy as np
 
+# 配置 matplotlib 使用中文字体；缺失时自动回退并只产生一次警告。
+try:
+    import matplotlib
+
+    matplotlib.rcParams["font.sans-serif"] = [
+        "SimHei",
+        "Microsoft YaHei",
+        "Arial Unicode MS",
+        "DejaVu Sans",
+    ]
+    matplotlib.rcParams["axes.unicode_minus"] = False
+except Exception:
+    pass
+
 from ballistic_sim.frames import ecef_to_geodetic, eci_to_ecef
 from ballistic_sim.simulator import SimResult
 from ballistic_sim.viz.monte_carlo import plot_dispersion

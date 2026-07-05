@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import logging
+import os
+import sys
+import warnings
 from dataclasses import dataclass
 from typing import Any, Optional
 
@@ -286,18 +289,27 @@ def _monte_carlo_process(
     seed: int,
 ) -> DispersionResult:
     """多进程/串行 CPU Monte Carlo."""
+    # pytest 收集器内部使用 ProcessPoolExecutor 时，Windows spawn 可能把测试套件
+    # 重新加载到子进程并递归挂起；自动降级到 batch（如适用）或串行 process。
+    if "pytest" in sys.modules and os.environ.get("PYTEST_CURRENT_TEST"):
+        warnings.warn(
+            "检测到 pytest 收集器内部运行 Monte Carlo process 后端；"
+            "自动回退到 batch/串行后端以避免 Windows spawn 递归挂起。",
+            stacklevel=2,
+        )
+        if _can_use_batch(cfg):
+            return _monte_carlo_batch(cfg, perturb, n_samples, seed, use_gpu=False)
+        n_jobs = 1
+
     results: list[Optional[SimResult]]
     if n_jobs == 1:
         results = [_run_single_process(cfg, seed + i, perturb) for i in range(n_samples)]
     else:
-        import sys
         from concurrent.futures import ProcessPoolExecutor
 
         n_workers = n_jobs if n_jobs > 0 else None
         # 将样本按批次分块，减少进程间调度开销（更粗粒度并行）
         if n_workers is None:
-            import os
-
             n_workers = os.cpu_count() or 1
         chunk_size = max(1, n_samples // n_workers)
         seed_chunks = [

@@ -8,6 +8,7 @@ import pytest
 from ballistic_sim.constants import WGS84_A
 from ballistic_sim.guidance.proportional_navigation import (
     ProNavGuidance,
+    make_static_target_provider,
     pro_nav_acceleration,
 )
 
@@ -176,3 +177,61 @@ def test_pro_nav_max_accel_zero() -> None:
     pn.set_target(0.0, 0.001, 0.0)
     a = pn.acceleration(np.array([0.0, 0.0, 0.0]), np.array([100.0, 0.0, 0.0]))
     assert np.allclose(a, 0.0)
+
+
+def test_make_static_target_provider_returns_eci_state() -> None:
+    """静态目标提供者应返回随地球自转的 ECI 位置及零速度。"""
+    provider = make_static_target_provider(0.0, 0.0, 0.0)
+    r0, v0 = provider(0.0)
+    r1, v1 = provider(100.0)
+    assert r0.shape == (3,)
+    assert v0.shape == (3,)
+    assert np.allclose(v0, 0.0)
+    assert np.allclose(v1, 0.0)
+    # 不同历元同一地面点的 ECI 位置不同
+    assert not np.allclose(r0, r1)
+
+
+def test_pro_nav_generalized_zero_velocity_falls_back() -> None:
+    """广义模式下弹目相对速度为零时退化为 TPN 形式。"""
+    r_rel = np.array([1000.0, 0.0, 0.0])
+    v_rel = np.zeros(3)
+    a_gpn = pro_nav_acceleration(r_rel, v_rel, nav_constant=3.0, mode="generalized")
+    a_tpn = pro_nav_acceleration(r_rel, v_rel, nav_constant=3.0, mode="true")
+    assert np.allclose(a_gpn, a_tpn)
+
+
+def test_pro_nav_zero_los_rate_returns_zero() -> None:
+    """视线角速度为零时（相对速度平行于视线）指令应为零。"""
+    r_rel = np.array([1000.0, 0.0, 0.0])
+    v_rel = np.array([-100.0, 0.0, 0.0])
+    a = pro_nav_acceleration(r_rel, v_rel, nav_constant=3.0, mode="true")
+    assert np.allclose(a, 0.0, atol=1e-9)
+
+
+def test_pro_nav_acceleration_bad_input_raises() -> None:
+    """异常形状输入应被 reshape 报错或产生可预期结果。"""
+    # 长度不足 3 会触发 reshape 错误
+    with pytest.raises(ValueError):
+        pro_nav_acceleration(np.array([1.0, 0.0]), np.array([-1.0, 0.0, 0.0]))
+
+
+def test_pro_nav_guidance_uses_target_provider() -> None:
+    """ProNavGuidance 通过 target_provider 计算指令。"""
+    provider = make_static_target_provider(0.0, 0.001, 0.0)
+    pn = ProNavGuidance(nav_constant=4.0, max_accel_m_s2=50.0)
+    pn.target_provider = provider
+    r_own = np.array([0.0, 0.0, 0.0])
+    v_own = np.array([100.0, 0.0, 0.0])
+    a = pn.acceleration(r_own, v_own)
+    assert np.isfinite(a).all()
+    assert np.linalg.norm(a) <= 50.0 + 1e-6
+
+
+def test_pro_nav_direction_zero_accel_sets_failed() -> None:
+    """direction 中加速度被裁剪为零时应设置 failed。"""
+    pn = ProNavGuidance(nav_constant=0.0, max_accel_m_s2=0.0)
+    pn.set_target(0.0, 0.001, 0.0)
+    direction = pn.direction(0.0, np.zeros(3), np.array([100.0, 0.0, 0.0]))
+    assert pn.failed
+    assert np.allclose(direction, 0.0)
