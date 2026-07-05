@@ -108,6 +108,7 @@ class SixDOFDynamics:
     Clp_table: Optional[np.ndarray] = None
     CYpa_table: Optional[np.ndarray] = None
     control: Optional[Any] = None
+    guidance: Optional[Any] = None
     options: Dict[str, bool] = field(
         default_factory=lambda: {
             "drag": True,
@@ -296,6 +297,13 @@ class SixDOFDynamics:
             moment_y += float(ctrl.M)
             moment_z += float(ctrl.N)
             dp += float(ctrl.L) / self.Ix
+
+        # 再入/能量管理制导律输出力矩/攻角指令，转化为 ControlMoment 注入
+        if self.guidance is not None and hasattr(self.guidance, "control_moment"):
+            gctrl = self.guidance.control_moment(y, alpha, beta)
+            moment_y += float(gctrl.M)
+            moment_z += float(gctrl.N)
+            dp += float(gctrl.L) / self.Ix
 
         accel = force_enu / self.mass_kg
 

@@ -160,3 +160,93 @@ def test_single_stage_fallback_when_no_stages() -> None:
     assert phases[0].name == "动力上升"
     assert isinstance(phases[0], PoweredPhase)
     assert isinstance(phases[1], CoastingPhase)
+
+
+def test_missile_proportional_guidance_on_last_stage() -> None:
+    """missile + proportional 应在末级动力段注入比例导引。"""
+    cfg = _icbm_two_stage_cfg()
+    cfg = cfg.model_copy(update={"mission": "missile"})
+    cfg = cfg.model_copy(
+        deep=True,
+        update={
+            "guidance": GuidanceConfig(
+                guidance_law="proportional",
+                target_lat_deg=39.0,
+                target_lon_deg=118.0,
+                nav_constant=4.0,
+            )
+        },
+    )
+    phases = build_phases(cfg)
+    last_powered = phases[1]
+    assert isinstance(last_powered, PoweredPhase)
+    assert last_powered.guidance["phase"] == "proportional"
+    assert "_pronav_guidance" in last_powered.guidance
+
+
+def test_rocket_aag_guidance_on_powered_stage() -> None:
+    """rocket + aag 应在动力段注入 AAG 状态。"""
+    cfg = _icbm_two_stage_cfg()
+    cfg = cfg.model_copy(update={"mission": "rocket"})
+    cfg = cfg.model_copy(
+        deep=True,
+        update={
+            "guidance": GuidanceConfig(
+                guidance_law="aag",
+                target_alt_m=200e3,
+                terminal_velocity_m_s=7800.0,
+            )
+        },
+    )
+    phases = build_phases(cfg)
+    powered = [ph for ph in phases if isinstance(ph, PoweredPhase)]
+    assert len(powered) == 2
+    for ph in powered:
+        assert ph.guidance["phase"] == "aag"
+        assert "_aag_state" in ph.guidance
+
+
+def test_reentry_guidance_assembly() -> None:
+    """icbm + reentry 应在再入段注入再入制导对象。"""
+    from ballistic_sim.guidance.reentry_guidance import ReentryGuidance
+
+    cfg = _icbm_two_stage_cfg()
+    cfg = cfg.model_copy(
+        deep=True,
+        update={
+            "guidance": GuidanceConfig(
+                guidance_law="reentry",
+                target_lat_deg=39.0,
+                target_lon_deg=118.0,
+            ),
+            "options": OptionsConfig(sixdof_reentry=True),
+        },
+    )
+    phases = build_phases(cfg)
+    reentry = [ph for ph in phases if ph.name == "再入段"]
+    assert len(reentry) == 1
+    assert isinstance(reentry[0].dynamics.guidance, ReentryGuidance)
+
+
+def test_energy_guidance_assembly() -> None:
+    """suborbital + energy 应在再入段注入能量管理制导对象。"""
+    from ballistic_sim.guidance.energy_management import EnergyManagementGuidance
+
+    cfg = _icbm_two_stage_cfg()
+    cfg = cfg.model_copy(update={"mission": "suborbital"})
+    cfg = cfg.model_copy(
+        deep=True,
+        update={
+            "guidance": GuidanceConfig(
+                guidance_law="energy",
+                target_lat_deg=39.0,
+                target_lon_deg=118.0,
+                energy_target_j_kg=-55e6,
+            ),
+            "options": OptionsConfig(sixdof_reentry=True),
+        },
+    )
+    phases = build_phases(cfg)
+    reentry = [ph for ph in phases if ph.name == "再入段"]
+    assert len(reentry) == 1
+    assert isinstance(reentry[0].dynamics.guidance, EnergyManagementGuidance)

@@ -2,17 +2,105 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 
 from ballistic_sim.config import SimConfig, StageConfig
 from ballistic_sim.dynamics.mpm import MPMOptions
+from ballistic_sim.guidance.aag import make_aag_state
+from ballistic_sim.guidance.energy_management import EnergyManagementGuidance
+from ballistic_sim.guidance.proportional_navigation import ProNavGuidance
+from ballistic_sim.guidance.reentry_guidance import ReentryGuidance
 from ballistic_sim.phases.base import Phase
 from ballistic_sim.phases.coasting import CoastingPhase
 from ballistic_sim.phases.powered import PoweredPhase
 from ballistic_sim.phases.reentry import ReentryPhase
 from ballistic_sim.phases.terminal import TerminalPhase
+
+
+def _make_aag_target(cfg: SimConfig) -> dict:
+    """由配置构造 AAG 终端目标 (r_T_m, v_T_ms, gamma_T)。"""
+    from ballistic_sim.constants import GM_EARTH, WGS84_A
+
+    r_T = WGS84_A + float(cfg.guidance.target_alt_m)
+    if cfg.guidance.terminal_velocity_m_s is not None:
+        v_T = float(cfg.guidance.terminal_velocity_m_s)
+    else:
+        v_T = float(np.sqrt(GM_EARTH / max(r_T, 1.0)))
+    gamma_T = float(cfg.guidance.terminal_fpa_deg) * np.pi / 180.0
+    return {"r_T_m": r_T, "v_T_ms": v_T, "gamma_T": gamma_T}
+
+
+def _inject_powered_guidance(
+    guid: Dict[str, Any],
+    cfg: SimConfig,
+    stage: Dict[str, Any],
+    is_terminal_stage: bool,
+) -> Dict[str, Any]:
+    """根据 ``guidance_law`` 为动力段制导字典注入状态对象。"""
+    law = cfg.guidance.guidance_law
+    if law == "none":
+        return guid
+
+    if law == "peg":
+        # PEG 已在 open_loop 中通过 phase == "peg" + _peg_state/_peg_stage 支持
+        guid["phase"] = "peg"
+        return guid
+
+    if law == "aag":
+        target = _make_aag_target(cfg)
+        state = make_aag_state(
+            target,
+            replan_period=cfg.guidance.guidance_replan_period,
+            max_iter=cfg.guidance.aag_max_iter,
+        )
+        guid["phase"] = "aag"
+        guid["_aag_state"] = state
+        guid["_aag_stage"] = stage
+        return guid
+
+    if law == "proportional" and is_terminal_stage and cfg.mission == "missile":
+        if cfg.guidance.target_lat_deg is not None and cfg.guidance.target_lon_deg is not None:
+            pn = ProNavGuidance(nav_constant=cfg.guidance.nav_constant).set_target(
+                cfg.guidance.target_lat_deg,
+                cfg.guidance.target_lon_deg,
+                cfg.guidance.target_alt_m,
+            )
+            guid["phase"] = "proportional"
+            guid["_pronav_guidance"] = pn
+        return guid
+
+    return guid
+
+
+def _make_reentry_guidance(cfg: SimConfig) -> Optional[Any]:
+    """构造再入/滑行段制导对象（若配置启用）。"""
+    law = cfg.guidance.guidance_law
+    if law not in ("reentry", "energy"):
+        return None
+    if cfg.guidance.target_lat_deg is None or cfg.guidance.target_lon_deg is None:
+        return None
+
+    if law == "reentry":
+        energy = cfg.guidance.energy_target_j_kg
+        return ReentryGuidance(
+            target_lat_deg=cfg.guidance.target_lat_deg,
+            target_lon_deg=cfg.guidance.target_lon_deg,
+            target_energy_j_kg=energy,
+            max_bank_deg=cfg.guidance.max_bank_deg,
+            nominal_aoa_deg=cfg.guidance.nominal_aoa_deg,
+            bank_gain=cfg.guidance.reentry_bank_gain,
+        )
+
+    # energy
+    energy = cfg.guidance.energy_target_j_kg
+    return EnergyManagementGuidance(
+        energy_target_j_kg=energy if energy is not None else -0.5 * 9.80665 * 6371000.0,
+        energy_slope_j_kg_m=cfg.guidance.energy_slope_j_kg_m,
+        kp=cfg.guidance.energy_kp,
+        max_aoa_deg=cfg.guidance.max_bank_deg,
+    )
 
 
 def build_phases(cfg: SimConfig) -> List[Phase]:
@@ -113,6 +201,7 @@ def _build_rocket_phases_legacy(cfg: SimConfig) -> List[Phase]:
         "kick_deg": cfg.guidance.kick_deg or 3.0,
         "t_kick_end": 25.0,
     }
+    guidance = _inject_powered_guidance(guidance, cfg, stage, is_terminal_stage=True)
     dyn = PoweredECIDynamics(stage=stage, guidance=guidance)
     t_burn_est = float(stage["m_prop"]) / dyn.prop.mdot
     phases: List[Phase] = [
@@ -136,6 +225,7 @@ def _build_rocket_phases_legacy(cfg: SimConfig) -> List[Phase]:
             lon0=cfg.launch.lon_deg,
         ),
     ]
+    reentry_guid = _make_reentry_guidance(cfg)
     if cfg.options.sixdof_reentry:
         from ballistic_sim.dynamics.six_dof import SixDOFDynamics
 
@@ -149,6 +239,7 @@ def _build_rocket_phases_legacy(cfg: SimConfig) -> List[Phase]:
             lat_deg=cfg.launch.lat_deg,
             twist_cal=cfg.vehicle.twist_cal or 20.0,
             options={"drag": True, "gravity": True, "coriolis": True, "thrust": False},
+            guidance=reentry_guid,
         )
         phases.append(
             ReentryPhase(
@@ -159,6 +250,7 @@ def _build_rocket_phases_legacy(cfg: SimConfig) -> List[Phase]:
                 terrain=terrain,
                 lat0=cfg.launch.lat_deg,
                 lon0=cfg.launch.lon_deg,
+                guidance=reentry_guid,
             )
         )
     phases.append(
@@ -245,8 +337,9 @@ def _build_multistage_phases(cfg: SimConfig) -> List[Phase]:
     for i, sd in enumerate(stage_dicts):
         guid = dict(base_guid)
         use_upperstage = False
-        # 末级火箭采用线性俯仰上面级制导
-        if i == n - 1 and cfg.mission == "rocket":
+        is_last = i == n - 1
+        # 末级火箭默认采用线性俯仰上面级制导；若配置显式制导律则优先使用制导律
+        if is_last and cfg.mission == "rocket" and cfg.guidance.guidance_law == "none":
             use_upperstage = True
             mdot = sd["thrust_vac"] / (sd["isp_vac"] * G0_STANDARD)
             t_burn = sd["m_prop"] / mdot
@@ -259,6 +352,9 @@ def _build_multistage_phases(cfg: SimConfig) -> List[Phase]:
                     "t_us_dur": float(t_burn),
                 }
             )
+        guid = _inject_powered_guidance(
+            guid, cfg, sd, is_terminal_stage=(is_last and cfg.mission == "missile")
+        )
         dyn = PoweredECIDynamics(stage=sd, guidance=guid, use_upperstage=use_upperstage)
         t_burn = sd["m_prop"] / dyn.prop.mdot
         phases.append(
@@ -303,6 +399,7 @@ def _build_multistage_phases(cfg: SimConfig) -> List[Phase]:
     )
 
     # 再入段：icbm/missile 默认加入；rocket 仅在 sixdof_reentry 时加入
+    reentry_guid = _make_reentry_guidance(cfg)
     if cfg.mission in ("icbm", "missile") or cfg.options.sixdof_reentry:
         if cfg.options.sixdof_reentry:
             from ballistic_sim.dynamics.six_dof import SixDOFDynamics
@@ -317,6 +414,7 @@ def _build_multistage_phases(cfg: SimConfig) -> List[Phase]:
                 lat_deg=cfg.launch.lat_deg,
                 twist_cal=cfg.vehicle.twist_cal or 20.0,
                 options={"drag": True, "gravity": True, "coriolis": True, "thrust": False},
+                guidance=reentry_guid,
             )
             phases.append(
                 ReentryPhase(
@@ -327,6 +425,7 @@ def _build_multistage_phases(cfg: SimConfig) -> List[Phase]:
                     terrain=terrain,
                     lat0=cfg.launch.lat_deg,
                     lon0=cfg.launch.lon_deg,
+                    guidance=reentry_guid,
                 )
             )
         else:
@@ -338,6 +437,7 @@ def _build_multistage_phases(cfg: SimConfig) -> List[Phase]:
                     terrain=terrain,
                     lat0=cfg.launch.lat_deg,
                     lon0=cfg.launch.lon_deg,
+                    guidance=reentry_guid,
                 )
             )
 

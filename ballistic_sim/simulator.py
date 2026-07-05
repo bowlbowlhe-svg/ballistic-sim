@@ -212,8 +212,8 @@ def simulate(
 
         t_start = t_abs
         t_end_max = t_start + (ph.t_span[1] - ph.t_span[0])
-        # 上面级制导装订：进入时刻与实测飞行路径角
-        if ph.guidance is not None:
+        # 上面级制导装订：进入时刻与实测飞行路径角（仅对 dict 形式制导参数）
+        if ph.guidance is not None and isinstance(ph.guidance, dict):
             if "t_us_start" in ph.guidance:
                 ph.guidance["t_us_start"] = float(t_start)
             if ph.guidance.get("gamma0_deg") is None:

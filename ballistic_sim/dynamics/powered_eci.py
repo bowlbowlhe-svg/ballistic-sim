@@ -72,11 +72,60 @@ class PoweredECIDynamics:
         return v - np.cross(self._omega_vec, r)
 
     def _thrust_dir(self, t: float, r: np.ndarray, v: np.ndarray, m: float) -> np.ndarray:
-        """调用统一制导入口。"""
+        """调用统一制导入口；支持 dict 形式开环/PEG 与对象形式新制导律。"""
         g = self.guidance
-        if self.use_upperstage:
-            return thrust_dir_upperstage(t, r, v, g)
-        return thrust_dir_eci(t, r, v, g, m=m)
+        if isinstance(g, dict):
+            phase = g.get("phase", "ascent")
+            if phase == "aag":
+                from ballistic_sim.guidance.aag import aag_thrust_dir
+
+                state = g.get("_aag_state")
+                stage = g.get("_aag_stage") or self.stage
+                if state is not None:
+                    d = aag_thrust_dir(t, r, v, m, stage, state)
+                    if d is not None:
+                        return self._safe_normalize(d, self._local_up(r))
+                    # AAG 失败时回退到开环
+                    return thrust_dir_eci(t, r, v, g, m=m)
+            if phase == "proportional":
+                pn = g.get("_pronav_guidance")
+                if pn is not None:
+                    d = pn.direction(t, r, v, m)
+                    if not pn.failed and float(np.linalg.norm(d)) > 1e-12:
+                        return self._safe_normalize(d, self._local_up(r))
+                    # 比例导引失败时回退开环
+                    return thrust_dir_eci(t, r, v, g, m=m)
+            if self.use_upperstage:
+                return thrust_dir_upperstage(t, r, v, g)
+            return thrust_dir_eci(t, r, v, g, m=m)
+
+        # 对象形式制导律：要求提供 direction(t, r, v, m) 接口
+        if hasattr(g, "direction"):
+            d = g.direction(t, r, v, m)
+            if d is not None:
+                d_arr = np.asarray(d, dtype=float).reshape(3)
+                n = float(np.linalg.norm(d_arr))
+                if n > 1e-12:
+                    return d_arr / n
+        return self._local_up(r)
+
+    @staticmethod
+    def _safe_normalize(v: Any, fallback: np.ndarray) -> np.ndarray:
+        """归一化矢量，零模长时回退。"""
+        arr = np.asarray(v, dtype=float).reshape(3)
+        n = float(np.linalg.norm(arr))
+        if n < 1e-12:
+            return fallback.copy()
+        return arr / n
+
+    @staticmethod
+    def _local_up(r: np.ndarray) -> np.ndarray:
+        """当地上方向单位矢量。"""
+        arr = np.asarray(r, dtype=float).reshape(3)
+        n = float(np.linalg.norm(arr))
+        if n < 1e-12:
+            return np.array([0.0, 0.0, 1.0], dtype=float)
+        return arr / n
 
     def _drag_accel(
         self,

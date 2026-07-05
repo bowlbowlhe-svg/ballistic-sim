@@ -1,0 +1,107 @@
+"""比例导引制导律单元测试。"""
+
+from __future__ import annotations
+
+import numpy as np
+
+from ballistic_sim.constants import WGS84_A
+from ballistic_sim.guidance.proportional_navigation import (
+    ProNavGuidance,
+    pro_nav_acceleration,
+)
+
+
+def _simple_pn_intercept(
+    r0: np.ndarray,
+    v0: np.ndarray,
+    target_provider,
+    nav_constant: float = 3.0,
+    max_accel: float = 100.0,
+    dt: float = 0.02,
+    t_max: float = 120.0,
+) -> tuple[float, np.ndarray, np.ndarray, float]:
+    """简单点质量积分：仅受比例导引加速度（局部惯性系）。"""
+    r = np.asarray(r0, dtype=float).copy()
+    v = np.asarray(v0, dtype=float).copy()
+    pn = ProNavGuidance(nav_constant=nav_constant, max_accel_m_s2=max_accel)
+    pn.target_provider = target_provider
+    t = 0.0
+    min_miss = float("inf")
+    while t < t_max:
+        r_t, v_t = target_provider(t)
+        miss_now = float(np.linalg.norm(r_t - r))
+        if miss_now < min_miss:
+            min_miss = miss_now
+        a_cmd = pn.acceleration(r, v, r_t, v_t)
+        # 二阶 Runge-Kutta（中点法）
+        v_half = v + 0.5 * a_cmd * dt
+        r_t_half, v_t_half = target_provider(t + 0.5 * dt)
+        a_half = pn.acceleration(r + 0.5 * v * dt, v_half, r_t_half, v_t_half)
+        v = v + a_half * dt
+        r = r + v_half * dt
+        t += dt
+        if min_miss < 1.0:
+            break
+    return t, r, v, min_miss
+
+
+def test_pro_nav_static_target_miss_distance() -> None:
+    """对静态目标的末端比例导引脱靶量应 < 100 m。"""
+    # 局部惯性系：目标在 x 轴 8 km 处，导弹初速带 y 向偏移
+    r0 = np.array([0.0, 0.0, 0.0])
+
+    def provider(t: float) -> tuple[np.ndarray, np.ndarray]:
+        return np.array([8000.0, 0.0, 0.0]), np.zeros(3)
+
+    v0 = np.array([600.0, 80.0, 0.0])
+
+    _, _, _, miss = _simple_pn_intercept(
+        r0, v0, provider, nav_constant=3.5, max_accel=150.0, t_max=60.0
+    )
+    assert miss < 100.0
+
+
+def test_pro_nav_constant_velocity_target() -> None:
+    """对匀速运动目标的拦截脱靶量应 < 100 m。"""
+    r0 = np.array([0.0, 0.0, 0.0])
+    # 目标以 100 m/s 沿 y 方向运动，导弹朝 x 方向发射
+    target_v = np.array([0.0, 100.0, 0.0])
+
+    def provider(t: float) -> tuple[np.ndarray, np.ndarray]:
+        return np.array([6000.0, 100.0 * t, 0.0]), target_v
+
+    v0 = np.array([700.0, 20.0, 0.0])
+
+    _, _, _, miss = _simple_pn_intercept(
+        r0, v0, provider, nav_constant=3.5, max_accel=200.0, t_max=80.0
+    )
+    assert miss < 100.0
+
+
+def test_pro_nav_acceleration_perpendicular_to_los() -> None:
+    """真比例导引加速度应垂直于视线。"""
+    r_rel = np.array([1000.0, 0.0, 0.0])
+    v_rel = np.array([-100.0, 50.0, 0.0])
+    a = pro_nav_acceleration(r_rel, v_rel, nav_constant=3.0, mode="true")
+    assert abs(np.dot(a, r_rel)) < 1.0
+
+
+def test_pro_nav_max_accel_clipping() -> None:
+    """最大加速度裁剪应生效。"""
+    pn = ProNavGuidance(nav_constant=5.0, max_accel_m_s2=10.0)
+    pn.set_target(0.0, 0.001, 0.0)
+    r_own = np.array([WGS84_A, 0.0, 0.0])
+    v_own = np.array([0.0, 100.0, 0.0])
+    a = pn.acceleration(r_own, v_own)
+    assert np.linalg.norm(a) <= 10.0 + 1e-6
+
+
+def test_pro_nav_set_methods_chain() -> None:
+    """链式 setter 应返回 self。"""
+    pn = ProNavGuidance()
+    assert pn.set_target(0.0, 0.0) is pn
+    assert pn.set_max_accel(50.0) is pn
+    assert pn.set_mode("generalized") is pn
+    assert pn.set_nav_constant(4.0) is pn
+    assert pn.mode == "generalized"
+    assert pn.nav_constant == 4.0

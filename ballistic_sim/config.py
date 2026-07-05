@@ -190,13 +190,28 @@ class GuidanceConfig(BaseModel):
 
     guidance_law: str = Field(
         default="none",
-        pattern=r"^(none|proportional|peg|energy)$",
+        pattern=r"^(none|proportional|peg|aag|reentry|energy)$",
         description="制导律类型",
     )
     kick_deg: float = Field(default=0.0, ge=-90, le=90, description="程序转弯角 (deg)")
     nav_constant: float = Field(default=3.0, gt=0, description="比例导引系数")
     target_lat_deg: Optional[float] = Field(default=None, ge=-90, le=90, description="目标纬度")
     target_lon_deg: Optional[float] = Field(default=None, ge=-180, le=180, description="目标经度")
+    target_alt_m: float = Field(default=0.0, description="目标高度 (m)")
+    terminal_velocity_m_s: Optional[float] = Field(
+        default=None, ge=0, description="终端速度 (m/s)"
+    )
+    terminal_fpa_deg: float = Field(default=0.0, ge=-90, le=90, description="终端弹道倾角 (deg)")
+    energy_target_j_kg: Optional[float] = Field(
+        default=None, description="目标比机械能 (J/kg)"
+    )
+    max_bank_deg: float = Field(default=60.0, ge=0, le=90, description="最大倾侧角 (deg)")
+    nominal_aoa_deg: float = Field(default=10.0, ge=-90, le=90, description="标称攻角 (deg)")
+    reentry_bank_gain: float = Field(default=1.0e-6, ge=0, description="再入倾侧角增益")
+    energy_kp: float = Field(default=0.1, ge=0, description="能量管理比例增益")
+    energy_slope_j_kg_m: float = Field(default=-1.0, description="能量-高度剖面斜率")
+    guidance_replan_period: float = Field(default=2.0, gt=0, description="制导重规划周期 (s)")
+    aag_max_iter: int = Field(default=30, gt=0, description="AAG 最大迭代次数")
 
 
 class OptionsConfig(BaseModel):
@@ -523,6 +538,38 @@ def validate_config(cfg: SimConfig) -> List[ValidationIssue]:
                 severity="WARNING",
                 path="guidance.guidance_law",
                 message="proportional 制导律通常用于导弹末端拦截任务",
+            )
+        )
+    if cfg.guidance.guidance_law == "aag" and cfg.mission not in ("rocket", "suborbital"):
+        issues.append(
+            ValidationIssue(
+                severity="WARNING",
+                path="guidance.guidance_law",
+                message="aag 制导律通常用于火箭/亚轨道上升段入轨任务",
+            )
+        )
+    if cfg.guidance.guidance_law in ("reentry", "energy") and cfg.mission not in (
+        "icbm",
+        "missile",
+        "suborbital",
+    ):
+        issues.append(
+            ValidationIssue(
+                severity="WARNING",
+                path="guidance.guidance_law",
+                message="reentry/energy 制导律通常用于再入/返回任务",
+            )
+        )
+
+    # 9. 制导律所需目标参数检查
+    if cfg.guidance.guidance_law in ("proportional", "reentry") and (
+        cfg.guidance.target_lat_deg is None or cfg.guidance.target_lon_deg is None
+    ):
+        issues.append(
+            ValidationIssue(
+                severity="ERROR",
+                path="guidance",
+                message=f"{cfg.guidance.guidance_law} 制导律需要设置 target_lat_deg 与 target_lon_deg",
             )
         )
 
