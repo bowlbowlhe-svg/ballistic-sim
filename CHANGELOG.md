@@ -7,9 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [0.4.0] - 2026-07-05
 
+### Added
+
+- 新增 `ballistic_sim/context.py`，集中管理 `_resolve_wind`、`_resolve_terrain`、`_resolve_dynamics_context`，彻底解耦 `simulator.py` ↔ `phases/builder.py` ↔ `monte_carlo.py`。
+- 新增 `tests/test_context.py` 与 `tests/test_public_api.py`，覆盖上下文解析与公共 API 入口。
+- 新增 `tests/test_config_validation_integration.py`，验证 `simulate()` / CLI / API 在运行前对 ERROR 配置的拒绝行为。
+- 新增 `tests/test_dynamics_point_mass.py` 与 `tests/golden/point_mass_rhs_baseline.json`，对 `PointMassDynamics.rhs` 做数值回归并验证风场/大气只查询一次。
+- `VehicleConfig` 新增 `drag_law: Literal["G1", "G7"]` 可选字段，`build_phases` 对弹丸任务可自动选择标准阻力表。
+- `OptionsConfig` 新增 `cache_maxsize` 字段，支持自定义 `ModelCache` 容量上限。
+
 ### Changed
 
 - 统一公共 API 入口：`ballistic_sim/__init__.py` 暴露 `SimConfig`、`simulate`、`build_phases`、`validate_config`、`load_config`、`save_config`、`apply_overrides`、`PerturbationConfig`、`SimResult` 等核心符号，并维护 `__all__`。
+- CLI、API、预设模块统一收敛到 `SimConfig + build_phases(cfg)`；`m107_phases()` / `projectile_phases()` 等函数保留签名但改为调用 `build_phases(cfg)` 并标记 deprecated。
+- `simulate()` / CLI `main()` / API 仿真端点在运行前统一调用 `validate_config(cfg)`，ERROR 级 issue 拒绝运行并给出清晰字段路径提示。
+- `ModelCache` 改用基于 `OrderedDict` 的 `LRUDict`，默认容量上限 10000，避免长时间积分或大样本 Monte Carlo 导致 OOM。
+- `PointMassDynamics.rhs` 引入 `_aero_env_full()`，一次性完成坐标转换、风场/大气查询与相对速度计算，消除重复查表；数值结果与重构前保持一致。
 - 版本号统一升级为 `0.4.0`：`ballistic_sim/__init__.py`、`pyproject.toml`、`ballistic_sim/api/main.py`、`tests/test_version.py`、`scripts/release_check.py`。
 
 ## [0.3.1] - 2026-07-05
