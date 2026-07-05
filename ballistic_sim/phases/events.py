@@ -89,15 +89,29 @@ def make_burnout_event(m_dry: float) -> Callable[[float, np.ndarray], float]:
 
 def make_stage_separation_event(
     t_sep: Optional[float] = None,
+    m_dry: Optional[float] = None,
 ) -> Callable[[float, np.ndarray], float]:
-    """固定时刻分离事件；若 ``t_sep`` 为 None，则作为一个占位非触发事件。"""
+    """级间分离事件工厂。
+
+    参数
+    ----
+    t_sep:
+        固定分离时刻 (s)。提供时按 ``t_sep - t`` 触发。
+    m_dry:
+        按质量触发：当状态第 7 维 (质量) 降到 ``m_dry`` 时触发。
+        ``t_sep`` 与 ``m_dry`` 同时提供时优先使用 ``m_dry``;
+        两者均为 None 时事件恒为正 (不触发)。
+    """
 
     def ev(t: float, y: np.ndarray) -> float:
-        if t_sep is None:
-            return 1.0
-        return float(t_sep) - float(t)
+        if m_dry is not None:
+            return float(y[6]) - float(m_dry)
+        if t_sep is not None:
+            return float(t_sep) - float(t)
+        return 1.0
 
-    return _set_event_attrs(ev, terminal=True, direction=-1)
+    direction = -1 if m_dry is not None else -1
+    return _set_event_attrs(ev, terminal=True, direction=direction)
 
 
 def make_target_distance_event(
@@ -172,3 +186,38 @@ def make_fairing_event_q(
         return q_fn(t, y) - float(q_thresh_pa)
 
     return _set_event_attrs(ev, terminal=False, direction=-1)
+
+
+def make_fairing_jettison_event(
+    mode: str = "altitude",
+    h_m: Optional[float] = None,
+    q_fn: Optional[Callable[[float, np.ndarray], float]] = None,
+    q_thresh_pa: Optional[float] = None,
+    frame: str = "ECI",
+    theta0: float = 0.0,
+) -> Callable[[float, np.ndarray], float]:
+    """整流罩抛罩事件工厂。
+
+    Parameters
+    ----------
+    mode:
+        ``"altitude"`` 按几何高度上穿阈值触发;
+        ``"q"`` 按动压下穿阈值触发。
+    h_m:
+        ``mode="altitude"`` 时的高度阈值 (m)。
+    q_fn:
+        ``mode="q"`` 时的动压函数 ``q(t, y)``。
+    q_thresh_pa:
+        ``mode="q"`` 时的动压阈值 (Pa)。
+    frame, theta0:
+        高度模式下的坐标系参数, 同 ``make_fairing_event_h``。
+    """
+    if mode == "altitude":
+        if h_m is None:
+            raise ValueError("altitude 模式需要提供 h_m")
+        return make_fairing_event_h(float(h_m), frame=frame, theta0=theta0)
+    if mode == "q":
+        if q_fn is None or q_thresh_pa is None:
+            raise ValueError("q 模式需要提供 q_fn 与 q_thresh_pa")
+        return make_fairing_event_q(q_fn, float(q_thresh_pa))
+    raise ValueError(f"未知的抛罩模式: {mode}")

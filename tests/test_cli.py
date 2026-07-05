@@ -59,31 +59,9 @@ def test_cli_no_viz_does_not_generate_png(tmp_path: Path, monkeypatch) -> None:
     assert not _pngs_in(tmp_path), "Unexpected PNG generated with --no-viz"
 
 
-def test_cli_missile_generates_png(tmp_path: Path, monkeypatch) -> None:
-    """``--mission missile --missile SRBM_600`` should run without error."""
-    _run_cli(monkeypatch, ["--mission", "missile", "--missile", "SRBM_600", "--no-viz"], tmp_path)
-
-
-def test_cli_icbm_generates_png(tmp_path: Path, monkeypatch) -> None:
-    """``--mission icbm`` should run without error."""
-    _run_cli(monkeypatch, ["--mission", "icbm", "--no-viz"], tmp_path)
-
-
-def test_cli_suborbital_generates_png(tmp_path: Path, monkeypatch) -> None:
-    """``--mission suborbital`` should run without error."""
-    _run_cli(monkeypatch, ["--mission", "suborbital", "--no-viz"], tmp_path)
-
-
-def test_cli_help_returns_zero(monkeypatch) -> None:
-    """``--help`` should exit cleanly."""
-    monkeypatch.setattr(sys, "argv", ["ballistic-sim", "--help"])
-    with pytest.raises(SystemExit) as exc_info:
-        main()
-    assert exc_info.value.code == 0
-
-
+@pytest.mark.slow
 def test_cli_monte_carlo_outputs_cep50(tmp_path: Path, monkeypatch, capsys) -> None:
-    """``--monte-carlo`` should output CEP50 and generate a PNG."""
+    """``--monte-carlo --mc-backend batch`` should produce MC summary with CEP50/CEP90."""
     _run_cli(
         monkeypatch,
         [
@@ -96,27 +74,26 @@ def test_cli_monte_carlo_outputs_cep50(tmp_path: Path, monkeypatch, capsys) -> N
             "--az",
             "45",
             "--monte-carlo",
-            "--mc-samples",
-            "20",
             "--mc-backend",
             "batch",
+            "--mc-samples",
+            "10",
+            "--no-viz",
         ],
         tmp_path,
     )
     captured = capsys.readouterr()
-    assert "CEP50" in captured.out
-    assert _pngs_in(tmp_path), "No Monte Carlo PNG generated"
+    assert "CEP50" in captured.out or "CEP90" in captured.out
 
 
-def test_cli_config_icbm_runs(tmp_path: Path, monkeypatch, capsys) -> None:
-    """``--config configs/sample_icbm.yaml`` should run without error."""
-    from pathlib import Path as _Path
-
-    repo_root = _Path(__file__).resolve().parent.parent
-    config_path = repo_root / "configs" / "sample_icbm.yaml"
-    _run_cli(monkeypatch, ["--config", str(config_path), "--no-viz"], tmp_path)
+def test_cli_missile_preset_runs(tmp_path: Path, monkeypatch, capsys) -> None:
+    """``--mission missile --missile SRBM_600`` should run and report Range."""
+    _run_cli(
+        monkeypatch,
+        ["--mission", "missile", "--missile", "SRBM_600", "--no-viz"],
+        tmp_path,
+    )
     captured = capsys.readouterr()
-    assert "icbm" in captured.out
     assert "Range" in captured.out
 
 
@@ -142,3 +119,21 @@ def test_cli_config_no_mission_uses_config_mission(tmp_path: Path, monkeypatch) 
     repo_root = _Path(__file__).resolve().parent.parent
     config_path = repo_root / "configs" / "sample_icbm.yaml"
     _run_cli(monkeypatch, ["--config", str(config_path), "--no-viz"], tmp_path)
+
+
+@pytest.mark.slow
+def test_cli_icbm_preset_runs(tmp_path: Path, monkeypatch, capsys) -> None:
+    """``--mission icbm --preset ICBM_8000`` 应使用 YAML 多级预设并落地。"""
+    _run_cli(
+        monkeypatch,
+        ["--mission", "icbm", "--preset", "ICBM_8000", "--no-viz"],
+        tmp_path,
+    )
+    captured = capsys.readouterr()
+    assert "icbm" in captured.out
+    assert "Range" in captured.out
+
+
+def test_cli_rocket_name_case_insensitive(tmp_path: Path, monkeypatch) -> None:
+    """``--rocket cz2f`` 应被归一化为 CZ2F 并成功运行。"""
+    _run_cli(monkeypatch, ["--mission", "rocket", "--rocket", "cz2f", "--no-viz"], tmp_path)

@@ -258,3 +258,64 @@ def test_sixdof_thrust_shuts_off_after_burn_time() -> None:
     dy = dyn.rhs(1.0, y0, ctx)
     # 关闭 drag/gravity/thrust_off 后加速度应为 0
     assert np.allclose(dy[3:6], 0.0, atol=1e-12)
+
+
+def test_sixdof_piecewise_thrust_schedule() -> None:
+    """thrust_N / burn_time_s 为列表时按分段推力工作。"""
+    dyn = SixDOFDynamics(
+        mass_kg=10.0,
+        thrust_N=[2000.0, 1000.0],
+        burn_time_s=[1.0, 1.0],
+        options={"drag": False, "gravity": False, "coriolis": False, "thrust": True},
+    )
+    ctx = _make_ctx()
+    y0 = dyn.initial_state(v0=0.0, theta_deg=90.0, az_deg=0.0)
+
+    # 第一段推力（零初速时弹轴沿 E，推力产生 E 向加速度）
+    dy = dyn.rhs(0.5, y0, ctx)
+    assert dy[3] == pytest.approx(2000.0 / 10.0, abs=1e-9)
+    tel = dyn.telemetry(0.5, y0, ctx)
+    assert tel["thrust_N"] == pytest.approx(2000.0, rel=1e-12)
+
+    # 第二段推力
+    dy = dyn.rhs(1.5, y0, ctx)
+    assert dy[3] == pytest.approx(1000.0 / 10.0, abs=1e-9)
+    tel = dyn.telemetry(1.5, y0, ctx)
+    assert tel["thrust_N"] == pytest.approx(1000.0, rel=1e-12)
+
+    # 关机后
+    dy = dyn.rhs(2.5, y0, ctx)
+    assert np.allclose(dy[3:6], 0.0, atol=1e-12)
+    tel = dyn.telemetry(2.5, y0, ctx)
+    assert tel["thrust_N"] == pytest.approx(0.0, abs=1e-12)
+
+
+def test_sixdof_piecewise_thrust_schedule_relative_to_t_start() -> None:
+    """分段推力时间表相对于 ``t_start_s`` 生效。"""
+    dyn = SixDOFDynamics(
+        mass_kg=10.0,
+        thrust_N=[1500.0],
+        burn_time_s=[1.0],
+        t_start_s=5.0,
+        options={"drag": False, "gravity": False, "coriolis": False, "thrust": True},
+    )
+    ctx = _make_ctx()
+    y0 = dyn.initial_state(v0=0.0, theta_deg=90.0, az_deg=0.0)
+
+    assert dyn._thrust_at(5.5) == pytest.approx(1500.0, rel=1e-12)
+    assert dyn._thrust_at(4.5) == pytest.approx(0.0, abs=1e-12)
+    assert dyn._thrust_at(6.5) == pytest.approx(0.0, abs=1e-12)
+
+    dy = dyn.rhs(5.5, y0, ctx)
+    assert dy[3] == pytest.approx(1500.0 / 10.0, abs=1e-9)
+
+
+def test_sixdof_piecewise_thrust_length_mismatch_raises() -> None:
+    """thrust_N 与 burn_time_s 长度不一致时抛出 ValueError。"""
+    with pytest.raises(ValueError, match="长度"):
+        SixDOFDynamics(
+            mass_kg=10.0,
+            thrust_N=[1000.0, 2000.0],
+            burn_time_s=[1.0],
+            options={"thrust": True},
+        )

@@ -40,3 +40,37 @@ missiles:
       - {name: S1, thrust_vac: 600.0e3, thrust_sl: 520.0e3, isp_vac: 255.0, m_prop: 12500.0, m_dry: 1900.0, diameter_m: 1.10, drag: G1}
       - {name: S2, thrust_vac: 140.0e3, thrust_sl: 120.0e3, isp_vac: 282.0, m_prop: 4200.0,  m_dry: 750.0,  diameter_m: 0.80, drag: G1}
     source: "placeholder/公开近似 (量级圆整教学值, 非官方实测)"
+
+  # ---------------------------------------------------------------------------
+  # ICBM_8000: 3 级洲际弹道导弹教学参数
+  # ---------------------------------------------------------------------------
+  # 诚实声明:
+  #   下列数值为公开资料/教学量级圆整后的代表性近似值, 并非任何真实型号官方数据。
+  #   级间比冲/干质量/直径参考民兵 III / 东风-5 量级公开介绍进行缩放,
+  #   用于演示 3 级动力上升 -> 中段滑行 -> 再入 -> 落地的完整任务链。
+  #   由于使用简化的 3-DOF 质点 + 火箭阻力模型, 射程与飞行时间与真实 ICBM
+  #   存在偏差; 精确再入气动、级间分离冲击、推进剂晃动等均未建模。
+  # ---------------------------------------------------------------------------
+  ICBM_8000:
+    name: "3级洲际弹道导弹教学参数 (ICBM_8000)"
+    launch_site: SITE_A
+    mission: "icbm"
+    payload_mass: 800.0
+    payload_diameter_m: 0.85
+    payload_drag: G7
+    warhead:
+      mass: 800.0
+      diameter_m: 0.85
+      drag: G7
+    fairing:
+      mass: 500.0
+      jettison_h_km: 130.0
+      jettison_q_pa: 1000.0
+    # kick_deg=88 / t_kick_end=25: 人工调参使教学链落在 8000 km 级射程 / 30 min 级飞行时间窗口。
+    # 精确射程与再入落点依赖真实再入飞行器气动与主动段关机条件, 本配置仅用于演示完整链路。
+    guidance: {azimuth_deg: 90.0, t_pitchover: 6.0, kick_deg: 88.0, t_kick_end: 25.0}
+    stages:
+      - {name: S1, thrust_vac: 2.40e6, thrust_sl: 2.10e6, isp_vac: 262.0, m_prop: 30000.0, m_dry: 5000.0, diameter_m: 1.90, drag: G7}
+      - {name: S2, thrust_vac: 1.20e6, thrust_sl: 0.98e6, isp_vac: 290.0, m_prop: 10000.0, m_dry: 2200.0, diameter_m: 1.50, drag: G7}
+      - {name: S3, thrust_vac: 0.35e6, thrust_sl: 0.28e6, isp_vac: 310.0, m_prop: 3300.0, m_dry: 900.0, diameter_m: 1.10, drag: G7}
+    source: "教学圆整值 (参考民兵III/东风-5 量级公开资料, 非官方实测)"

@@ -67,6 +67,7 @@ class AAGState:
     replan_period: float = 2.0
     max_iter: int = _ITER_MAX
     ve_eff: Optional[float] = None
+    position_gain: float = 0.005
     t_last_plan: Optional[float] = None
     dir_eci: Optional[np.ndarray] = None
     acc_eci: Optional[np.ndarray] = None
@@ -81,6 +82,7 @@ def make_aag_state(
     max_iter: int = _ITER_MAX,
     ve_eff: Optional[float] = None,
     mu: float = GM_EARTH,
+    position_gain: float = 0.005,
 ) -> AAGState:
     """由目标轨道/终端状态构造 AAGState。
 
@@ -105,7 +107,13 @@ def make_aag_state(
             "v_T_ms": float(np.sqrt(max(v2, 0.0))),
             "gamma_T": 0.0,
         }
-    return AAGState(terminal, replan_period=replan_period, max_iter=max_iter, ve_eff=ve_eff)
+    return AAGState(
+        terminal,
+        replan_period=replan_period,
+        max_iter=max_iter,
+        ve_eff=ve_eff,
+        position_gain=position_gain,
+    )
 
 
 def _effective_exhaust_velocity(stage: Dict[str, Any]) -> float:
@@ -169,8 +177,8 @@ def aag_replan(
         state.failed = True
         return False
 
-    v_target = _terminal_velocity_eci(r, v, terminal)
     r_target = _target_position_eci(r, terminal)
+    v_target = _terminal_velocity_eci(r_target, v, terminal)
     g0 = mu / max(r_mag * r_mag, 1.0)
 
     # 初始速度增量
@@ -187,6 +195,11 @@ def aag_replan(
         # 平均重力损失：g0 沿平均上方向积分 t_go
         up_avg = _safe_unit(r + r_target, local_up(r))
         v_grav = g0 * t_go * up_avg
+
+        # 终端位置反馈：用当前到终端半径方向的误差修正速度增量，
+        # 避免纯速度约束制导忽略高度/弹道倾角目标。
+        position_gain = float(getattr(state, "position_gain", 0.01))
+        v_pos = position_gain * (r_target - r) / max(t_go, 1e-6)
 
         # 平均速度方向作为地心转动近似
         v_avg = 0.5 * (v + v_target)
@@ -209,7 +222,7 @@ def aag_replan(
         gamma_T = float(terminal.get("gamma_T", 0.0))
         v_T_rot = float(terminal["v_T_ms"]) * (np.cos(gamma_T) * h_T + np.sin(gamma_T) * up_T)
 
-        vgo_new = (v_T_rot - v) + v_grav
+        vgo_new = (v_T_rot - v) + v_grav + v_pos
         if not np.all(np.isfinite(vgo_new)):
             break
         # 阻尼迭代

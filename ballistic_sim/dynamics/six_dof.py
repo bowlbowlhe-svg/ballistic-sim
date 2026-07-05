@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import warnings
 from dataclasses import dataclass, field
-from typing import Any, Dict, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional, Sequence, Union
 
 import numpy as np
 from scipy.interpolate import PchipInterpolator
@@ -117,8 +117,9 @@ class SixDOFDynamics:
             "thrust": False,
         }
     )
-    thrust_N: float = 0.0
-    burn_time_s: float = 0.0
+    thrust_N: Union[float, Sequence[float]] = 0.0
+    burn_time_s: Union[float, Sequence[float]] = 0.0
+    t_start_s: float = 0.0
 
     def __post_init__(self):
         self.area = float(np.pi * self.diameter_m**2 / 4.0)
@@ -129,6 +130,7 @@ class SixDOFDynamics:
                 stacklevel=2,
             )
             object.__setattr__(self, "x_cp_cg", 0.05)
+        self._build_thrust_schedule()
         self._CD0 = _make_aero_interp(self.CD0_table, 0.25)
         self._CDa2 = _make_aero_interp(self.CDa2_table, 0.05)
         self._CNa = _make_aero_interp(self.CNa_table, 1.6)
@@ -140,6 +142,47 @@ class SixDOFDynamics:
     def _spin_rate(self, v0: float) -> float:
         """由初速与缠距计算炮口自转角速度 (rad/s)。"""
         return 2.0 * np.pi * v0 / (self.twist_cal * self.diameter_m)
+
+    def _build_thrust_schedule(self) -> None:
+        """由 ``thrust_N`` / ``burn_time_s`` 构造分段推力时间表。"""
+        thrust = self.thrust_N
+        burn = self.burn_time_s
+        if isinstance(thrust, (list, tuple, np.ndarray)):
+            thrust_list = [float(x) for x in thrust]
+            if isinstance(burn, (list, tuple, np.ndarray)):
+                burn_list = [float(x) for x in burn]
+            else:
+                burn_list = [float(burn)] * len(thrust_list)  # type: ignore[arg-type]
+            if len(thrust_list) != len(burn_list):
+                raise ValueError("thrust_N 与 burn_time_s 列表长度必须相同")
+            if not burn_list:
+                self._thrust_schedule: List[tuple[float, float, float]] = []
+                self._thrust_total_time = 0.0
+                return
+            times = [0.0]
+            for b in burn_list:
+                times.append(times[-1] + b)
+            self._thrust_schedule = [
+                (times[i], times[i + 1], thrust_list[i]) for i in range(len(thrust_list))
+            ]
+            self._thrust_total_time = float(times[-1])
+        else:
+            t_n = float(thrust)  # type: ignore[arg-type]
+            t_b = float(burn)  # type: ignore[arg-type]
+            if t_n > 0.0 and t_b > 0.0:
+                self._thrust_schedule = [(0.0, t_b, t_n)]
+                self._thrust_total_time = t_b
+            else:
+                self._thrust_schedule = []
+                self._thrust_total_time = 0.0
+
+    def _thrust_at(self, t: float) -> float:
+        """返回当前时刻的轴向推力（相对于 ``t_start_s`` 的相位时间）。"""
+        tau = t - self.t_start_s
+        for t0, t1, thrust in self._thrust_schedule:
+            if t0 <= tau < t1:
+                return float(thrust)
+        return 0.0
 
     def state_dim(self) -> int:
         """状态向量维度：13。"""
@@ -320,8 +363,10 @@ class SixDOFDynamics:
             coriolis[2] = 2.0 * (Omega_n * v[0])
             accel += coriolis
 
-        if self.options.get("thrust", False) and self.thrust_N > 0.0 and t < self.burn_time_s:
-            accel += (self.thrust_N / self.mass_kg) * s
+        if self.options.get("thrust", False):
+            thrust = self._thrust_at(t)
+            if thrust > 0.0:
+                accel += (thrust / self.mass_kg) * s
 
         domega_y = moment_y / self.It
         domega_z = moment_z / self.It
@@ -353,7 +398,7 @@ class SixDOFDynamics:
         beta = np.arctan2(v_b, u_b)
 
         thrust_active = float(
-            self.thrust_N if (self.options.get("thrust", False) and t < self.burn_time_s) else 0.0
+            self._thrust_at(t) if self.options.get("thrust", False) else 0.0
         )
         return {
             "h": h,

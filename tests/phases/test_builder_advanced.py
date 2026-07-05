@@ -250,3 +250,29 @@ def test_energy_guidance_assembly() -> None:
     reentry = [ph for ph in phases if ph.name == "再入段"]
     assert len(reentry) == 1
     assert isinstance(reentry[0].dynamics.guidance, EnergyManagementGuidance)
+
+
+def test_build_phases_for_icbm_three_stage_full_chain() -> None:
+    """builder 应为 ICBM 三级预设生成 动力×3 -> 滑行 -> 再入 -> 终点。"""
+    from ballistic_sim.presets.missiles import missile_full_config
+
+    cfg = missile_full_config("ICBM_8000")
+    phases = build_phases(cfg)
+    names = [ph.name for ph in phases]
+    assert names == ["S1 动力", "S2 动力", "S3 动力", "滑行", "再入段", "终点"]
+    assert all(isinstance(ph, PoweredPhase) for ph in phases[:3])
+    assert isinstance(phases[3], CoastingPhase)
+    assert isinstance(phases[4], ReentryPhase)
+    assert isinstance(phases[5], TerminalPhase)
+
+
+def test_build_phases_for_rocket_full_chain_has_coast_and_terminal() -> None:
+    """builder 应为火箭完整链生成多级动力 -> 滑行 -> 轨道插入。"""
+    from ballistic_sim.presets.rockets import rocket_full_config
+
+    cfg = rocket_full_config("CZ2F")
+    phases = build_phases(cfg)
+    names = [ph.name for ph in phases]
+    assert any("滑行" in n for n in names)
+    assert names[-1] == "轨道插入"
+    assert not any(n == "再入段" for n in names)

@@ -42,8 +42,13 @@ class CoastingPhase(Phase):
     def process_events(self, sol) -> List[dict]:
         records = super().process_events(sol)
         for rec in records:
-            if rec["event_index"] == 0:
+            idx = rec["event_index"]
+            event_fn = self.events[idx] if idx < len(self.events) else None
+            name = getattr(event_fn, "name", None)
+            if name is not None:
+                rec["name"] = name
+            elif idx == 0:
                 rec["name"] = "远地点"
-            elif rec["event_index"] == 1:
+            elif idx == 1:
                 rec["name"] = "落地保护"
         return records

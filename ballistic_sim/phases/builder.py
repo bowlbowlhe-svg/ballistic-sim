@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 
 from ballistic_sim.config import SimConfig, StageConfig
+from ballistic_sim.constants import WGS84_A
 from ballistic_sim.dynamics.mpm import MPMOptions
 from ballistic_sim.guidance.aag import make_aag_state
 from ballistic_sim.guidance.energy_management import EnergyManagementGuidance
@@ -15,6 +16,7 @@ from ballistic_sim.guidance.reentry_guidance import ReentryGuidance
 from ballistic_sim.phases.base import Phase
 from ballistic_sim.phases.coasting import CoastingPhase
 from ballistic_sim.phases.powered import PoweredPhase
+from ballistic_sim.phases.events import make_apogee_event
 from ballistic_sim.phases.reentry import ReentryPhase
 from ballistic_sim.phases.terminal import TerminalPhase
 
@@ -54,6 +56,7 @@ def _inject_powered_guidance(
             target,
             replan_period=cfg.guidance.guidance_replan_period,
             max_iter=cfg.guidance.aag_max_iter,
+            position_gain=cfg.guidance.aag_position_gain,
         )
         guid["phase"] = "aag"
         guid["_aag_state"] = state
@@ -322,9 +325,9 @@ def _build_multistage_phases(cfg: SimConfig) -> List[Phase]:
         "lat_deg": cfg.launch.lat_deg,
         "lon_deg": cfg.launch.lon_deg,
         "azimuth_deg": cfg.launch.azimuth_deg,
-        "t_pitchover": 10.0,
+        "t_pitchover": cfg.guidance.t_pitchover,
         "kick_deg": cfg.guidance.kick_deg if cfg.guidance.kick_deg != 0.0 else 3.0,
-        "t_kick_end": 25.0,
+        "t_kick_end": cfg.guidance.t_kick_end,
     }
 
     total_stage_mass = sum(s.m_dry + s.m_prop for s in stages)
@@ -387,18 +390,51 @@ def _build_multistage_phases(cfg: SimConfig) -> List[Phase]:
         guidance=base_guid,
         modes={"thrust": False, "drag": True, "j2": True},
     )
-    phases.append(
-        CoastingPhase(
-            name="滑行",
-            t_span=(cfg.launch.t0_s, cfg.launch.t0_s + 7200.0),
-            dynamics=dyn_coast,
-            terrain=terrain,
-            lat0=cfg.launch.lat_deg,
-            lon0=cfg.launch.lon_deg,
-        )
-    )
 
-    # 再入段：icbm/missile 默认加入；rocket 仅在 sixdof_reentry 时加入
+    # 滑行/再入/终点：rocket/icbm/missile/suborbital 均插入滑行段；
+    # rocket 任务默认以轨道插入为终点，滑行段默认只带远地点/落地事件。
+    insert_reentry = cfg.mission in ("icbm", "missile") or cfg.options.sixdof_reentry
+    if cfg.mission in ("rocket", "icbm", "missile", "suborbital"):
+        if insert_reentry:
+            # 对 icbm/missile，滑行段以 100 km 再入高度为 terminal 事件，
+            # 使后续 ReentryPhase 能接管积分；避免地面事件在滑行段提前终止。
+            _h_entry = 100e3
+            _r_entry = cfg.launch.alt_m + 1e3  # 上升段出大气事件 (非 terminal)
+
+            def _altitude_event(
+                h_m: float, direction: int, terminal: bool = False, name: str = "高度事件"
+            ):
+                def ev(t: float, y: np.ndarray) -> float:
+                    r = np.asarray(y[0:3], dtype=float)
+                    return float(np.linalg.norm(r) - WGS84_A - h_m)
+
+                ev.terminal = terminal  # type: ignore[attr-defined]
+                ev.direction = direction  # type: ignore[attr-defined]
+                ev.name = name  # type: ignore[attr-defined]
+                return ev
+
+            apogee_ev = make_apogee_event(frame="ECI")
+            apogee_ev.name = "远地点"  # type: ignore[attr-defined]
+            coast_events = [
+                apogee_ev,
+                _altitude_event(_r_entry, +1, terminal=False, name="出大气"),
+                _altitude_event(_h_entry, -1, terminal=True, name="再入"),
+            ]
+        else:
+            coast_events = []
+
+        phases.append(
+            CoastingPhase(
+                name="滑行",
+                t_span=(cfg.launch.t0_s, cfg.launch.t0_s + 7200.0),
+                dynamics=dyn_coast,
+                events=coast_events,
+                terrain=terrain,
+                lat0=cfg.launch.lat_deg,
+                lon0=cfg.launch.lon_deg,
+            )
+        )
+
     reentry_guid = _make_reentry_guidance(cfg)
     if cfg.mission in ("icbm", "missile") or cfg.options.sixdof_reentry:
         if cfg.options.sixdof_reentry:

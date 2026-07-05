@@ -135,6 +135,13 @@ def project_state(
     6-DOF 状态不包含质量，因此 13 -> 7 降维需要显式传入 ``mass_kg``；
     3-DOF -> 6-DOF 升维需要显式传入 ``quat``（以及可选的 ``omega``），
     或由调用方设置 ``allow_auto=True`` 默认沿速度方向构造姿态。
+
+    再入点非零攻角初始化示例
+    --------------------------
+    3-DOF ECI 状态经 ``ECI -> ENU`` 换系后，再通过 ``quat`` 指定体轴相对
+    速度方向的偏转即可定义攻角；``omega`` 用于给定初始横向角速度/自旋。
+    若 ``quat`` 未提供且 ``allow_auto=False``，则抛出 ``StateSwitchError``，
+    避免高保真阶段在姿态未知时自动升维导致物理不一致。
     """
     y_src = np.asarray(y_src, dtype=float)
 

@@ -269,6 +269,7 @@ rockets:
       m_prop: 12000.0
       m_dry: 1500.0
       diameter_m: 3.5
+    core3_ignition: true
     payload_mass_kg: 4500.0
     launch:
       site: "JSLC"
@@ -284,6 +285,78 @@ rockets:
       target_apo_km: 400.0
       target_inc_deg: 42.0
     source: "教学圆整值 (非实物; 真三级点火, 含无动力滑行段到远地点再点火)"
+
+  CZ3B:
+    name: "长征三号乙 (CZ-3B, 简化教学参数)"
+    propellant: "N2O4/UDMH 芯一级/二级; LOX/LH2 三级 (教学近似)"
+    diameter_core_m: 3.35
+    Aref_core_m2: 8.814
+    Aref_parallel_m2: 15.0
+    booster:
+      name: "CZ3B-助推×4 (YF-25 级, 教学)"
+      n_engine: 4
+      thrust_sl: 2.96e6
+      thrust_vac: 3.264e6
+      isp_sl: 261.0
+      isp_vac: 289.0
+      burn_time: 127.0
+      m_prop: 150800.0
+      m_dry: 12000.0
+      diameter_m: 3.35
+    core1:
+      name: "CZ3B-芯一级 (YF-21C, 4×YF-20)"
+      n_engine: 4
+      thrust_sl: 2.96e6
+      thrust_vac: 3.418e6
+      isp_sl: 259.0
+      isp_vac: 289.0
+      burn_time: 160.0
+      m_prop: 187000.0
+      m_dry: 9500.0
+      diameter_m: 3.35
+    core2:
+      name: "CZ3B-芯二级 (YF-22/23)"
+      n_engine: 1
+      thrust_sl: 742.0e3
+      thrust_vac: 831.0e3
+      isp_sl: 292.0
+      isp_vac: 300.0
+      burn_time: 185.0
+      m_prop: 72700.0
+      m_dry: 5200.0
+      diameter_m: 3.35
+    fairing:
+      name: "CZ3B-整流罩 (教学)"
+      m: 2200.0
+      jettison_q_pa: 1000.0
+      jettison_h_km: 110.0
+    core3:
+      name: "CZ3B-三级 (YF-75, 教学)"
+      n_engine: 1
+      thrust_sl: 0.0
+      thrust_vac: 167.0e3
+      isp_sl: 440.0
+      isp_vac: 440.0
+      burn_time: 470.0
+      m_prop: 18200.0
+      m_dry: 2800.0
+      diameter_m: 3.35
+    core3_ignition: true
+    payload_mass_kg: 5200.0
+    launch:
+      site: "JSLC"
+      lat_deg: 40.96
+      lon_deg: 100.29
+      alt_m: 1000.0
+    guidance:
+      t_pitchover: 12.0
+      kick_deg: 4.0
+      t_kick_end: 30.0
+    target:
+      target_peri_km: 200.0
+      target_apo_km: 400.0
+      target_inc_deg: 42.0
+    source: "公开资料近似 (CALT CZ-3B 介绍 / astronautix / b14643.de / 维基, 非官方实测)"
 
 # 通用圆化级 (第二脉冲, 远地点切向点火圆化)
 circ_stage:

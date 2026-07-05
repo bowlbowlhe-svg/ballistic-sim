@@ -52,7 +52,7 @@ def _normalize_rocket_name(name: str) -> str:
         "LONG-MARCH-2F": "CZ2F",
         "LONG-MARCH-2C": "CZ2C",
     }
-    return aliases.get(name.upper(), name)
+    return aliases.get(name.upper(), name.upper())
 
 
 def _parse_args() -> argparse.Namespace:
@@ -149,7 +149,21 @@ def _build_rocket_config(args: argparse.Namespace) -> tuple[SimConfig, list]:
 
 
 def _build_icbm_config(args: argparse.Namespace) -> tuple[SimConfig, list]:
-    """占位 ICBM 配置 (单级大推力 + 滑行 + 再入)。"""
+    """ICBM 配置：优先使用 YAML 预设，无预设时使用占位单级链。"""
+    name = args.preset or args.missile
+    if name:
+        from ballistic_sim.presets.missiles import missile_full_chain, missile_full_config
+
+        cfg = missile_full_config(name)
+        if args.az is not None:
+            cfg = apply_overrides(cfg, {"launch.azimuth_deg": args.az})
+        if args.target_lat is not None:
+            cfg = apply_overrides(cfg, {"guidance.target_lat_deg": args.target_lat})
+        if args.target_lon is not None:
+            cfg = apply_overrides(cfg, {"guidance.target_lon_deg": args.target_lon})
+        return cfg, missile_full_chain(name)
+
+    # 占位单级 ICBM 链（无预设时）
     from ballistic_sim.config import EnvironmentConfig, OptionsConfig, VehicleConfig
     from ballistic_sim.dynamics.powered_eci import PoweredECIDynamics
     from ballistic_sim.phases.coasting import CoastingPhase

@@ -194,6 +194,8 @@ class GuidanceConfig(BaseModel):
         description="制导律类型",
     )
     kick_deg: float = Field(default=0.0, ge=-90, le=90, description="程序转弯角 (deg)")
+    t_pitchover: float = Field(default=10.0, gt=0, description="程序转弯开始时刻 (s)")
+    t_kick_end: float = Field(default=25.0, gt=0, description="程序转弯结束时刻 (s)")
     nav_constant: float = Field(default=3.0, gt=0, description="比例导引系数")
     target_lat_deg: Optional[float] = Field(default=None, ge=-90, le=90, description="目标纬度")
     target_lon_deg: Optional[float] = Field(default=None, ge=-180, le=180, description="目标经度")
@@ -212,6 +214,9 @@ class GuidanceConfig(BaseModel):
     energy_slope_j_kg_m: float = Field(default=-1.0, description="能量-高度剖面斜率")
     guidance_replan_period: float = Field(default=2.0, gt=0, description="制导重规划周期 (s)")
     aag_max_iter: int = Field(default=30, gt=0, description="AAG 最大迭代次数")
+    aag_position_gain: float = Field(
+        default=0.005, ge=0.0, description="AAG 终端位置反馈增益"
+    )
 
 
 class OptionsConfig(BaseModel):
