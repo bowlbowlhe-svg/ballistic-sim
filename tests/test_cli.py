@@ -97,6 +97,44 @@ def test_cli_missile_preset_runs(tmp_path: Path, monkeypatch, capsys) -> None:
     assert "Range" in captured.out
 
 
+def test_cli_missile_overrides_applied(monkeypatch) -> None:
+    """missile 的 --az / --target-lat / --target-lon 应覆盖到配置。"""
+    from argparse import Namespace
+
+    from ballistic_sim.cli import _build_missile_config
+
+    args = Namespace(missile="SRBM_600", az=123.0, target_lat=30.0, target_lon=120.0)
+    cfg = _build_missile_config(args)
+    assert cfg.launch.azimuth_deg == 123.0
+    assert cfg.guidance.target_lat_deg == 30.0
+    assert cfg.guidance.target_lon_deg == 120.0
+
+
+def test_cli_rocket_overrides_applied(monkeypatch) -> None:
+    """rocket 的 --az / --qe 应覆盖到配置。"""
+    from argparse import Namespace
+
+    from ballistic_sim.cli import _build_rocket_config
+
+    args = Namespace(rocket="CZ2F", az=95.0, qe=75.0)
+    cfg = _build_rocket_config(args)
+    assert cfg.launch.azimuth_deg == 95.0
+    assert cfg.launch.elevation_deg == 75.0
+
+
+def test_cli_icbm_overrides_applied(monkeypatch) -> None:
+    """icbm 的 --az / --target-lat / --target-lon 应覆盖到配置。"""
+    from argparse import Namespace
+
+    from ballistic_sim.cli import _build_icbm_config
+
+    args = Namespace(preset="ICBM_8000", missile=None, az=42.0, target_lat=30.0, target_lon=120.0)
+    cfg = _build_icbm_config(args)
+    assert cfg.launch.azimuth_deg == 42.0
+    assert cfg.guidance.target_lat_deg == 30.0
+    assert cfg.guidance.target_lon_deg == 120.0
+
+
 def test_cli_config_with_override(tmp_path: Path, monkeypatch, capsys) -> None:
     """CLI 参数应覆盖配置文件中的值。"""
     from pathlib import Path as _Path

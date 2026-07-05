@@ -17,15 +17,18 @@ from ballistic_sim.config import (
 )
 from ballistic_sim.dynamics.mpm import MPMOptions, MPMDynamics
 from ballistic_sim.models.aerodynamics import DRAG_G1, DRAG_G7
-from ballistic_sim.phases.powered import PoweredPhase
-from ballistic_sim.phases.terminal import TerminalPhase
+from ballistic_sim.phases.builder import build_phases
 from ballistic_sim.presets.loader import get_projectile, list_projectiles, make_aero_tables
 
 
 def _projectile_config_from_preset(name: str) -> SimConfig:
     """由 YAML 预设构造 SimConfig。"""
+    from typing import Literal
+
     p = get_projectile(name)
     make_aero_tables(p)
+    drag_name = p.get("drag", "G1")
+    drag_law: Literal["G1", "G7"] = "G7" if drag_name == "G7" else "G1"
     return SimConfig(
         mission="projectile",
         vehicle=VehicleConfig(
@@ -33,6 +36,7 @@ def _projectile_config_from_preset(name: str) -> SimConfig:
             diameter_m=float(p["d"]),
             cd=float(p["i"]),
             area_ref_m2=None,
+            drag_law=drag_law,
         ),
         launch=LaunchConfig(
             lat_deg=float(p["lat"]),
@@ -93,29 +97,21 @@ def m107_config() -> SimConfig:
 
 
 def projectile_phases(name: str) -> list:
-    """由弹丸预设构造 [动力/无动力段, 终点] phase 列表。"""
-    p = get_projectile(name)
+    """由弹丸预设构造 [动力/无动力段, 终点] phase 列表。
+
+    .. deprecated:: v0.4.0
+        后请使用 ``build_phases(cfg)``。
+    """
     cfg = _projectile_config_from_preset(name)
-    dyn = _projectile_dynamics_from_preset(name)
-    return [
-        PoweredPhase(
-            name="无动力弹道",
-            t_span=(cfg.launch.t0_s, cfg.launch.t0_s + 3000.0),
-            dynamics=dyn,
-            guidance=None,
-            m_dry=float(p["m"]),
-            sep_name="落地",
-        ),
-        TerminalPhase(
-            name="终点",
-            t_span=(cfg.launch.t0_s, cfg.launch.t0_s + 3000.0),
-            dynamics=dyn,
-        ),
-    ]
+    return build_phases(cfg)
 
 
 def m107_phases() -> list:
-    """M107 对应的 phase 列表。"""
+    """M107 对应的 phase 列表。
+
+    .. deprecated:: v0.4.0
+        后请使用 ``build_phases(cfg)``。
+    """
     return projectile_phases("M107")
 
 

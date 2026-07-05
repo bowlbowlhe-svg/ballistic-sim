@@ -8,7 +8,7 @@ from typing import Any, Dict, List
 import numpy as np
 from scipy.integrate import solve_ivp
 
-from ballistic_sim.config import SimConfig
+from ballistic_sim.config import SimConfig, validate_config
 from ballistic_sim.context import _resolve_dynamics_context
 from ballistic_sim.phases.base import Phase
 from ballistic_sim.state_switch import project_state
@@ -43,6 +43,14 @@ def simulate(
         并希望重新构建上下文，可传入 ``False``。
     """
     from ballistic_sim.phases.builder import build_phases
+
+    issues = validate_config(cfg)
+    errors = [i for i in issues if i.severity == "ERROR"]
+    if errors:
+        lines = ["SimConfig validation failed:"]
+        for issue in issues:
+            lines.append(f"  [{issue.severity}] {issue.path}: {issue.message}")
+        raise ValueError("\n".join(lines))
 
     if not phases:
         phases = build_phases(cfg)

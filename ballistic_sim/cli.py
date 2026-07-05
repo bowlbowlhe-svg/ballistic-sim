@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -12,22 +13,22 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from ballistic_sim.config import (
+    EnvironmentConfig,
     GuidanceConfig,
     LaunchConfig,
+    OptionsConfig,
     SimConfig,
+    StageConfig,
+    ValidationIssue,
+    VehicleConfig,
     apply_overrides,
+    validate_config,
 )
 from ballistic_sim.dynamics.common import rv_to_oe
 from ballistic_sim.frames import ecef_to_geodetic, eci_to_ecef, haversine_distance
 from ballistic_sim.presets import (
     list_missiles,
-    missile_config,
-    missile_phases,
     m107_config,
-    m107_phases,
-    projectile_phases,
-    rocket_config,
-    rocket_phases,
 )
 from ballistic_sim.simulator import SimResult, simulate
 from ballistic_sim.monte_carlo import PerturbationConfig, monte_carlo_simulation
@@ -37,6 +38,14 @@ from ballistic_sim.viz import (
     detect_frame,
     plot_dispersion,
 )
+
+
+def _format_validation_issues(issues: List[ValidationIssue]) -> str:
+    """将 ValidationIssue 列表格式化为可读消息。"""
+    lines = ["SimConfig validation failed:"]
+    for issue in issues:
+        lines.append(f"  [{issue.severity}] {issue.path}: {issue.message}")
+    return "\n".join(lines)
 
 
 def _default_out_dir(mission: str) -> Path:
@@ -105,7 +114,7 @@ def _parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def _build_projectile_config(args: argparse.Namespace) -> tuple[SimConfig, list]:
+def _build_projectile_config(args: argparse.Namespace) -> SimConfig:
     preset = args.preset or "M107"
     cfg = m107_config() if preset == "M107" else _projectile_config_from_preset(preset)
     if args.qe is not None:
@@ -114,8 +123,7 @@ def _build_projectile_config(args: argparse.Namespace) -> tuple[SimConfig, list]
         cfg = apply_overrides(cfg, {"launch.elevation_deg": qe})
     if args.az is not None:
         cfg = apply_overrides(cfg, {"launch.azimuth_deg": args.az})
-    phases = m107_phases() if preset == "M107" else projectile_phases(preset)
-    return cfg, phases
+    return cfg
 
 
 def _projectile_config_from_preset(name: str) -> SimConfig:
@@ -124,35 +132,37 @@ def _projectile_config_from_preset(name: str) -> SimConfig:
     return _projectile_config_from_preset(name)
 
 
-def _build_missile_config(args: argparse.Namespace) -> tuple[SimConfig, list]:
+def _build_missile_config(args: argparse.Namespace) -> SimConfig:
     name = args.missile or list_missiles()[0]
-    cfg = missile_config(name)
+    from ballistic_sim.presets.missiles import missile_full_config
+
+    cfg = missile_full_config(name)
     if args.az is not None:
         cfg = apply_overrides(cfg, {"launch.azimuth_deg": args.az})
     if args.target_lat is not None:
         cfg = apply_overrides(cfg, {"guidance.target_lat_deg": args.target_lat})
     if args.target_lon is not None:
         cfg = apply_overrides(cfg, {"guidance.target_lon_deg": args.target_lon})
-    phases = missile_phases(name)
-    return cfg, phases
+    return cfg
 
 
-def _build_rocket_config(args: argparse.Namespace) -> tuple[SimConfig, list]:
+def _build_rocket_config(args: argparse.Namespace) -> SimConfig:
     name = _normalize_rocket_name(args.rocket or "CZ2F")
-    cfg = rocket_config(name)
+    from ballistic_sim.presets.rockets import rocket_full_config
+
+    cfg = rocket_full_config(name)
     if args.az is not None:
         cfg = apply_overrides(cfg, {"launch.azimuth_deg": args.az})
     if args.qe is not None:
         cfg = apply_overrides(cfg, {"launch.elevation_deg": args.qe})
-    phases = rocket_phases(cfg, name=name)
-    return cfg, phases
+    return cfg
 
 
-def _build_icbm_config(args: argparse.Namespace) -> tuple[SimConfig, list]:
+def _build_icbm_config(args: argparse.Namespace) -> SimConfig:
     """ICBM 配置：优先使用 YAML 预设，无预设时使用占位单级链。"""
     name = args.preset or args.missile
     if name:
-        from ballistic_sim.presets.missiles import missile_full_chain, missile_full_config
+        from ballistic_sim.presets.missiles import missile_full_config
 
         cfg = missile_full_config(name)
         if args.az is not None:
@@ -161,102 +171,32 @@ def _build_icbm_config(args: argparse.Namespace) -> tuple[SimConfig, list]:
             cfg = apply_overrides(cfg, {"guidance.target_lat_deg": args.target_lat})
         if args.target_lon is not None:
             cfg = apply_overrides(cfg, {"guidance.target_lon_deg": args.target_lon})
-        return cfg, missile_full_chain(name)
+        return cfg
 
     # 占位单级 ICBM 链（无预设时）
-    from ballistic_sim.config import EnvironmentConfig, OptionsConfig, VehicleConfig
-    from ballistic_sim.dynamics.powered_eci import PoweredECIDynamics
-    from ballistic_sim.phases.coasting import CoastingPhase
-    from ballistic_sim.phases.powered import PoweredPhase
-    from ballistic_sim.phases.reentry import ReentryPhase
-    from ballistic_sim.phases.terminal import TerminalPhase
-
     lat = 0.0
     lon = 0.0
     azimuth = args.az if args.az is not None else 45.0
     warhead_mass = 1000.0
-    stage: Dict[str, Any] = dict(
-        name="ICBM-boost",
-        thrust_vac=1.2e6,
-        thrust_sl=1.0e6,
-        isp_vac=300.0,
-        m_prop=20000.0,
-        m_dry=warhead_mass,
-        Aref=1.0,
-    )
-    guid = dict(
-        lat_deg=lat,
-        lon_deg=lon,
-        azimuth_deg=azimuth,
-        t_pitchover=10.0,
-        kick_deg=20.0,
-        t_kick_end=60.0,
-    )
-    dyn_boost = PoweredECIDynamics(stage=stage, guidance=guid)
-    t_burn = float(stage["m_prop"]) / dyn_boost.prop.mdot
-    ph_boost = PoweredPhase(
-        name="主动段",
-        t_span=(0.0, t_burn * 1.2),
-        dynamics=dyn_boost,
-        guidance=guid,
-        m_dry=warhead_mass,
-        sep_name="关机",
-    )
-    coast_stage: Dict[str, Any] = dict(
-        name="ICBM-coast",
-        thrust_vac=0.0,
-        thrust_sl=0.0,
-        isp_vac=1.0,
-        m_prop=0.0,
-        m_dry=warhead_mass,
-        Aref=0.5,
-    )
-    dyn_coast = PoweredECIDynamics(
-        stage=coast_stage,
-        guidance=guid,
-        modes={"thrust": False, "drag": True, "j2": True},
-    )
-
-    def _alt_event(h_m: float, direction: int, terminal: bool = False):
-        def ev(t: float, y: np.ndarray) -> float:
-            return float(np.linalg.norm(y[0:3]) - 6378137.0 - h_m)
-
-        ev.terminal = terminal  # type: ignore[attr-defined]
-        ev.direction = direction  # type: ignore[attr-defined]
-        return ev
-
-    def _apo_event():
-        def ev(t: float, y: np.ndarray) -> float:
-            return float(np.dot(y[0:3], y[3:6]))
-
-        ev.terminal = False  # type: ignore[attr-defined]
-        ev.direction = -1  # type: ignore[attr-defined]
-        return ev
-
-    ph_coast = CoastingPhase(
-        name="中段",
-        t_span=(0.0, 7200.0),
-        dynamics=dyn_coast,
-        guidance=guid,
-        events=[_apo_event(), _alt_event(100e3, +1), _alt_event(100e3, -1, terminal=True)],
-    )
-    ph_reentry = ReentryPhase(
-        name="再入段",
-        t_span=(0.0, 7200.0),
-        dynamics=dyn_coast,
-        events=[_alt_event(0.0, -1, terminal=True)],
-    )
-    ph_terminal = TerminalPhase(
-        name="终点",
-        t_span=(0.0, 7200.0),
-        dynamics=dyn_coast,
-    )
+    m_prop = 20000.0
     cfg = SimConfig(
         mission="icbm",
         vehicle=VehicleConfig(
-            mass_kg=float(stage["m_prop"]) + float(stage["m_dry"]),
+            mass_kg=m_prop + warhead_mass,
             diameter_m=0.5,
             cd=0.3,
+            stages=[
+                StageConfig(
+                    name="ICBM-boost",
+                    thrust_sl=1.0e6,
+                    thrust_vac=1.2e6,
+                    isp_vac=300.0,
+                    m_prop=m_prop,
+                    m_dry=0.0,
+                    diameter_m=0.5,
+                    Aref=1.0,
+                )
+            ],
         ),
         launch=LaunchConfig(
             lat_deg=lat,
@@ -270,7 +210,11 @@ def _build_icbm_config(args: argparse.Namespace) -> tuple[SimConfig, list]:
             atmosphere="isa",
             gravity_model="j2",
         ),
-        guidance=GuidanceConfig(),
+        guidance=GuidanceConfig(
+            kick_deg=20.0,
+            t_pitchover=10.0,
+            t_kick_end=60.0,
+        ),
         options=OptionsConfig(
             integrator="DOP853",
             rtol=1e-6,
@@ -279,79 +223,16 @@ def _build_icbm_config(args: argparse.Namespace) -> tuple[SimConfig, list]:
             terminate_impact=True,
         ),
     )
-    return cfg, [ph_boost, ph_coast, ph_reentry, ph_terminal]
+    return cfg
 
 
-def _build_suborbital_config(args: argparse.Namespace) -> tuple[SimConfig, list]:
+def _build_suborbital_config(args: argparse.Namespace) -> SimConfig:
     """亚轨道任务: 简化单级火箭, 主动段后关闭推力落回。"""
-    from ballistic_sim.config import EnvironmentConfig, OptionsConfig, VehicleConfig
-    from ballistic_sim.dynamics.powered_eci import PoweredECIDynamics
-    from ballistic_sim.phases.coasting import CoastingPhase
-    from ballistic_sim.phases.powered import PoweredPhase
-    from ballistic_sim.phases.terminal import TerminalPhase
-
     mass = 1000.0
     thrust = 25.0e3
     isp = 290.0
-    thrust / (isp * 9.80665)
     m_prop = 0.8 * mass
-    m_dry = mass - m_prop
     Aref = 0.196
-
-    stage: Dict[str, Any] = dict(
-        name="Suborbital-boost",
-        thrust_sl=thrust,
-        thrust_vac=thrust * 1.1,
-        isp_vac=isp,
-        m_prop=m_prop,
-        m_dry=m_dry,
-        Aref=Aref,
-    )
-    guid = dict(
-        lat_deg=0.0,
-        lon_deg=0.0,
-        azimuth_deg=args.az if args.az is not None else 90.0,
-        t_pitchover=5.0,
-        kick_deg=args.qe if args.qe is not None else 85.0,
-        t_kick_end=15.0,
-    )
-    dyn_boost = PoweredECIDynamics(stage=stage, guidance=guid)
-    t_burn = float(stage["m_prop"]) / dyn_boost.prop.mdot
-    ph_boost = PoweredPhase(
-        name="动力上升",
-        t_span=(0.0, t_burn * 1.5),
-        dynamics=dyn_boost,
-        guidance=guid,
-        m_dry=m_dry,
-        sep_name="燃尽",
-    )
-
-    coast_stage: Dict[str, Any] = dict(
-        name="Suborbital-coast",
-        thrust_vac=0.0,
-        thrust_sl=0.0,
-        isp_vac=1.0,
-        m_prop=0.0,
-        m_dry=m_dry,
-        Aref=Aref,
-    )
-    dyn_coast = PoweredECIDynamics(
-        stage=coast_stage,
-        guidance=guid,
-        modes={"thrust": False, "drag": True, "j2": True},
-    )
-    ph_coast = CoastingPhase(
-        name="无动力回落",
-        t_span=(0.0, 3600.0),
-        dynamics=dyn_coast,
-        guidance=guid,
-    )
-    ph_terminal = TerminalPhase(
-        name="终点",
-        t_span=(0.0, 3600.0),
-        dynamics=dyn_coast,
-    )
-
     cfg = SimConfig(
         mission="suborbital",
         vehicle=VehicleConfig(
@@ -359,12 +240,24 @@ def _build_suborbital_config(args: argparse.Namespace) -> tuple[SimConfig, list]
             diameter_m=0.5,
             cd=0.3,
             area_ref_m2=Aref,
+            stages=[
+                StageConfig(
+                    name="Suborbital-boost",
+                    thrust_sl=thrust,
+                    thrust_vac=thrust * 1.1,
+                    isp_vac=isp,
+                    m_prop=m_prop,
+                    m_dry=0.0,
+                    diameter_m=0.5,
+                    Aref=Aref,
+                )
+            ],
         ),
         launch=LaunchConfig(
             lat_deg=0.0,
             lon_deg=0.0,
             alt_m=1.0,
-            azimuth_deg=guid["azimuth_deg"],
+            azimuth_deg=args.az if args.az is not None else 90.0,
             elevation_deg=90.0,
             v0_m_s=0.0,
         ),
@@ -372,7 +265,11 @@ def _build_suborbital_config(args: argparse.Namespace) -> tuple[SimConfig, list]
             atmosphere="isa",
             gravity_model="j2",
         ),
-        guidance=GuidanceConfig(),
+        guidance=GuidanceConfig(
+            kick_deg=args.qe if args.qe is not None else 85.0,
+            t_pitchover=5.0,
+            t_kick_end=15.0,
+        ),
         options=OptionsConfig(
             integrator="DOP853",
             rtol=1e-6,
@@ -381,7 +278,7 @@ def _build_suborbital_config(args: argparse.Namespace) -> tuple[SimConfig, list]
             terminate_impact=True,
         ),
     )
-    return cfg, [ph_boost, ph_coast, ph_terminal]
+    return cfg
 
 
 def _parse_terrain_extent(value: Optional[str]) -> Optional[list[float]]:
@@ -444,20 +341,20 @@ def _build_config_and_phases(args: argparse.Namespace) -> tuple[SimConfig, list]
         # CLI 显式 --mission 优先级高于配置文件
         if args.mission is not None:
             cfg = apply_overrides(cfg, {"mission": args.mission})
-        phases = build_phases(cfg)
     elif args.mission == "projectile":
-        cfg, phases = _build_projectile_config(args)
+        cfg = _build_projectile_config(args)
     elif args.mission == "missile":
-        cfg, phases = _build_missile_config(args)
+        cfg = _build_missile_config(args)
     elif args.mission == "rocket":
-        cfg, phases = _build_rocket_config(args)
+        cfg = _build_rocket_config(args)
     elif args.mission == "icbm":
-        cfg, phases = _build_icbm_config(args)
+        cfg = _build_icbm_config(args)
     elif args.mission == "suborbital":
-        cfg, phases = _build_suborbital_config(args)
+        cfg = _build_suborbital_config(args)
     else:
         raise ValueError("未提供 --mission 或 --config")
     cfg = _apply_common_overrides(cfg, args)
+    phases = build_phases(cfg)
     return cfg, phases
 
 
@@ -668,6 +565,13 @@ def main() -> None:
         raise SystemExit("错误: --mission 是必需参数（--gui/--serve/--config 除外）")
 
     cfg, phases = _build_config_and_phases(args)
+
+    issues = validate_config(cfg)
+    errors = [i for i in issues if i.severity == "ERROR"]
+    if errors:
+        msg = _format_validation_issues(issues)
+        print(msg, file=sys.stderr)
+        raise SystemExit(1)
 
     out_dir = Path(args.out_dir) if args.out_dir else _default_out_dir(cfg.mission)
     out_dir.mkdir(parents=True, exist_ok=True)

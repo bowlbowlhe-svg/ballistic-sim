@@ -109,6 +109,7 @@ class VehicleConfig(BaseModel):
     thrust_N: Optional[float] = Field(default=None, ge=0, description="推力 (N)")
     burn_time_s: Optional[float] = Field(default=None, gt=0, description="发动机工作时间 (s)")
     stages: Optional[List[StageConfig]] = Field(default=None, description="多级火箭 stage 列表")
+    drag_law: Optional[Literal["G1", "G7"]] = Field(default=None, description="弹丸阻力定律 G1/G7")
     # 6-DOF 可选参数
     Ix: Optional[float] = Field(default=None, gt=0, description="轴向转动惯量 (kg·m²)")
     It: Optional[float] = Field(default=None, gt=0, description="横向转动惯量 (kg·m²)")

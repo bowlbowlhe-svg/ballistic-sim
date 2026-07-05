@@ -24,13 +24,7 @@ from ballistic_sim.monte_carlo import PerturbationConfig, monte_carlo_simulation
 from ballistic_sim.phases.builder import build_phases
 from ballistic_sim.presets import (
     list_missiles,
-    missile_config,
-    missile_phases,
     m107_config,
-    m107_phases,
-    projectile_phases,
-    rocket_config,
-    rocket_phases,
 )
 from ballistic_sim.simulator import SimResult, simulate
 from ballistic_sim.viz import (
@@ -46,6 +40,22 @@ require_fastapi()
 from fastapi import FastAPI, HTTPException  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 from fastapi.staticfiles import StaticFiles  # noqa: E402
+
+
+def _format_validation_issues(issues: List[ValidationIssue]) -> str:
+    """将 ValidationIssue 列表格式化为可读消息。"""
+    lines = ["SimConfig validation failed:"]
+    for issue in issues:
+        lines.append(f"  [{issue.severity}] {issue.path}: {issue.message}")
+    return "\n".join(lines)
+
+
+def _check_config_or_raise(cfg: SimConfig) -> None:
+    """校验配置；若存在 ERROR 则抛出 HTTPException(400)。"""
+    issues = validate_config(cfg)
+    errors = [i for i in issues if i.severity == "ERROR"]
+    if errors:
+        raise HTTPException(status_code=400, detail=_format_validation_issues(issues))
 
 
 def _web_root() -> Path:
@@ -98,26 +108,33 @@ def _build_config_and_phases(
         preset = request.preset or "M107"
         if preset == "M107":
             cfg = m107_config()
-            phases = m107_phases()
         else:
             from ballistic_sim.presets.projectiles import _projectile_config_from_preset
 
             cfg = _projectile_config_from_preset(preset)
-            phases = projectile_phases(preset)
     elif mission == "missile":
         name = request.preset or list_missiles()[0]
-        cfg = missile_config(name)
-        phases = missile_phases(name)
+        from ballistic_sim.presets.missiles import missile_full_config
+
+        cfg = missile_full_config(name)
     elif mission == "rocket":
         name = request.preset or "CZ2F"
-        cfg = rocket_config(name)
-        phases = rocket_phases(cfg, name=name)
-    elif mission in ("icbm", "suborbital"):
+        from ballistic_sim.presets.rockets import rocket_full_config
+
+        cfg = rocket_full_config(name)
+    elif mission == "icbm":
+        if request.preset:
+            from ballistic_sim.presets.missiles import missile_full_config
+
+            cfg = missile_full_config(request.preset)
+        else:
+            cfg = SimConfig(mission=mission)
+    elif mission == "suborbital":
         cfg = SimConfig(mission=mission)
-        phases = build_phases(cfg)
     else:
         raise ValueError(f"未支持的任务类型: {mission}")
     cfg = _merge_request(cfg, request)
+    phases = build_phases(cfg)
     return cfg, phases
 
 
@@ -177,7 +194,7 @@ def _run_simulation(
 ) -> SimulateResponse:
     """Run a single simulation and package the response."""
     cfg, phases = _build_config_and_phases(mission, request)
-    phases = build_phases(cfg) if not phases else phases
+    _check_config_or_raise(cfg)
     result = simulate(cfg, phases=phases)
     summary = _compute_summary(cfg, result)
     trajectory: Optional[Dict[str, List[float]]] = None
@@ -208,6 +225,7 @@ def _run_monte_carlo(request: MonteCarloRequest) -> MonteCarloResponse:
         include_trajectory=False,
     )
     cfg, _ = _build_config_and_phases(request.mission, sim_request)
+    _check_config_or_raise(cfg)
     if request.backend in ("batch", "gpu"):
         cfg = apply_overrides(
             cfg,
@@ -250,6 +268,7 @@ def _solve_fire_control(request: FireControlRequest) -> FireControlResponse:
         include_trajectory=False,
     )
     cfg, _ = _build_config_and_phases(request.mission, sim_request)
+    _check_config_or_raise(cfg)
     try:
         sol = solve_firing_solution_latlon(
             cfg,
@@ -334,7 +353,8 @@ def create_app() -> FastAPI:
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-        result = simulate(cfg, phases=phases if phases else build_phases(cfg))
+        _check_config_or_raise(cfg)
+        result = simulate(cfg, phases=phases)
 
         if request.format == "html":
             try:

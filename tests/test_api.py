@@ -195,6 +195,24 @@ def test_config_validate_empty_vehicle_ok(client: TestClient) -> None:
     assert not any(item["severity"] == "ERROR" for item in data)
 
 
+def test_simulate_invalid_config_returns_400(client: TestClient) -> None:
+    """POST /simulate/rocket with T/W <= 1 returns 400 with T/W detail."""
+    response = client.post(
+        "/simulate/rocket",
+        json={
+            "vehicle": {
+                "mass_kg": 1000.0,
+                "thrust_N": 5000.0,
+                "burn_time_s": 60.0,
+                "stages": None,
+            },
+            "include_trajectory": False,
+        },
+    )
+    assert response.status_code == 400
+    assert "T/W" in response.text
+
+
 def test_create_app_returns_distinct_instances() -> None:
     """Each call to create_app returns a new FastAPI instance."""
     app1 = create_app()

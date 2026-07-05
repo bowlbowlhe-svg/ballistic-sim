@@ -127,6 +127,7 @@ def build_phases_legacy(cfg: SimConfig) -> List[Phase]:
 def _build_projectile_phases(cfg: SimConfig) -> List[Phase]:
     from ballistic_sim.dynamics.mpm import MPMDynamics
     from ballistic_sim.context import _resolve_terrain
+    from ballistic_sim.models.aerodynamics import DRAG_G1, DRAG_G7
 
     terrain = _resolve_terrain(cfg)
     opt = MPMOptions(
@@ -139,10 +140,16 @@ def _build_projectile_phases(cfg: SimConfig) -> List[Phase]:
         rtol=cfg.options.rtol,
         atol=cfg.options.atol,
     )
+    drag_law = None
+    if cfg.vehicle.drag_law == "G1":
+        drag_law = DRAG_G1
+    elif cfg.vehicle.drag_law == "G7":
+        drag_law = DRAG_G7
     dyn = MPMDynamics(
         mass_kg=cfg.vehicle.mass_kg,
         diameter_m=cfg.vehicle.diameter_m,
         form_factor=cfg.vehicle.cd or 1.0,
+        drag_law=drag_law,
         options=opt,
         lat_deg=cfg.launch.lat_deg,
     )
