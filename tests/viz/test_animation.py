@@ -9,7 +9,7 @@ from typing import Any
 import matplotlib
 import pytest
 
-matplotlib.use("Agg")
+matplotlib.use("Agg", force=True)
 
 from ballistic_sim.presets import m107_config  # noqa: E402
 from ballistic_sim.simulator import SimResult, simulate  # noqa: E402
