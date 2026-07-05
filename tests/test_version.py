@@ -12,7 +12,7 @@ from ballistic_sim import __version__  # noqa: E402
 from ballistic_sim.api import app  # noqa: E402
 from ballistic_sim.api.main import create_app  # noqa: E402
 
-TARGET_VERSION = "0.3.0"
+TARGET_VERSION = "0.3.1"
 
 
 def test_version_matches_expected() -> None:
