@@ -63,6 +63,7 @@ def _parse_args() -> argparse.Namespace:
         choices=["projectile", "missile", "rocket", "icbm", "suborbital"],
         help="任务类型",
     )
+    parser.add_argument("--config", type=str, help="YAML/JSON 配置文件路径")
     parser.add_argument("--preset", type=str, help="弹丸/火炮预设名")
     parser.add_argument("--rocket", type=str, help="火箭预设名")
     parser.add_argument("--missile", type=str, help="导弹预设名")
@@ -398,8 +399,41 @@ def _apply_environment_overrides(cfg: SimConfig, args: argparse.Namespace) -> Si
     return cfg
 
 
+def _load_config_file(path: str) -> SimConfig:
+    """从 YAML/JSON 配置文件加载 SimConfig。"""
+    from ballistic_sim.config import load_config
+
+    return load_config(path)
+
+
+def _apply_common_overrides(
+    cfg: SimConfig, args: argparse.Namespace
+) -> SimConfig:
+    """将 CLI 通用参数通过 apply_overrides 注入配置并返回。"""
+    if args.qe is not None:
+        # 仰角物理上限为 90°, 对非法输入做钳位保护
+        qe = float(np.clip(args.qe, 0.0, 90.0))
+        cfg = apply_overrides(cfg, {"launch.elevation_deg": qe})
+    if args.az is not None:
+        cfg = apply_overrides(cfg, {"launch.azimuth_deg": args.az})
+    if args.target_lat is not None:
+        cfg = apply_overrides(cfg, {"guidance.target_lat_deg": args.target_lat})
+    if args.target_lon is not None:
+        cfg = apply_overrides(cfg, {"guidance.target_lon_deg": args.target_lon})
+    cfg = _apply_environment_overrides(cfg, args)
+    return cfg
+
+
 def _build_config_and_phases(args: argparse.Namespace) -> tuple[SimConfig, list]:
-    if args.mission == "projectile":
+    from ballistic_sim.phases.builder import build_phases
+
+    if args.config is not None:
+        cfg = _load_config_file(args.config)
+        # CLI 显式 --mission 优先级高于配置文件
+        if args.mission is not None:
+            cfg = apply_overrides(cfg, {"mission": args.mission})
+        phases = build_phases(cfg)
+    elif args.mission == "projectile":
         cfg, phases = _build_projectile_config(args)
     elif args.mission == "missile":
         cfg, phases = _build_missile_config(args)
@@ -410,8 +444,8 @@ def _build_config_and_phases(args: argparse.Namespace) -> tuple[SimConfig, list]
     elif args.mission == "suborbital":
         cfg, phases = _build_suborbital_config(args)
     else:
-        raise ValueError(f"未支持的任务类型: {args.mission}")
-    cfg = _apply_environment_overrides(cfg, args)
+        raise ValueError("未提供 --mission 或 --config")
+    cfg = _apply_common_overrides(cfg, args)
     return cfg, phases
 
 
@@ -618,12 +652,12 @@ def main() -> None:
         run_gui()
         return
 
-    if args.mission is None:
-        raise SystemExit("错误: --mission 是必需参数（--gui/--serve 除外）")
+    if args.mission is None and args.config is None:
+        raise SystemExit("错误: --mission 是必需参数（--gui/--serve/--config 除外）")
 
     cfg, phases = _build_config_and_phases(args)
 
-    out_dir = Path(args.out_dir) if args.out_dir else _default_out_dir(args.mission)
+    out_dir = Path(args.out_dir) if args.out_dir else _default_out_dir(cfg.mission)
     out_dir.mkdir(parents=True, exist_ok=True)
 
     saved_viz: List[str] = []
@@ -657,7 +691,7 @@ def main() -> None:
                 json.dump(mc_summary, f, ensure_ascii=False, indent=2)
             saved_viz.append(str(summary_path))
 
-        print(f"Mission : {args.mission}")
+        print(f"Mission : {cfg.mission}")
         print(f"Mode    : Monte Carlo ({args.mc_backend})")
         print(f"Samples : {mc_result.samples}")
         print(f"Range   : {mc_result.range_mean / 1e3:.2f} ± {mc_result.range_std / 1e3:.2f} km")
@@ -680,7 +714,7 @@ def main() -> None:
             json.dump(summary, f, ensure_ascii=False, indent=2)
         saved_viz.append(str(summary_path))
 
-    print(f"Mission : {args.mission}")
+    print(f"Mission : {cfg.mission}")
     print(f"Stop    : {summary['stop_reason']}")
     print(f"TOF     : {summary.get('t_end_s')} s")
     if "range_m" in summary:

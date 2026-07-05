@@ -1,0 +1,47 @@
+# 简化 ICBM 配置示例（教学级公开近似参数）
+# 运行方式：ballistic-sim --config configs/sample_icbm.yaml
+mission: icbm
+vehicle:
+  mass_kg: 50000.0
+  diameter_m: 2.0
+  cd: 0.3
+  area_ref_m2: 3.1416
+  stages:
+    - name: S1
+      thrust_sl: 1.2e6
+      thrust_vac: 1.35e6
+      isp_vac: 260.0
+      m_prop: 30000.0
+      m_dry: 8000.0
+      diameter_m: 2.0
+    - name: S2
+      thrust_sl: 200.0e3
+      thrust_vac: 250.0e3
+      isp_vac: 300.0
+      m_prop: 8000.0
+      m_dry: 2000.0
+      diameter_m: 1.5
+launch:
+  lat_deg: 39.9
+  lon_deg: 116.0
+  alt_m: 50.0
+  azimuth_deg: 90.0
+  elevation_deg: 90.0
+  v0_m_s: 0.0
+environment:
+  atmosphere: isa
+  gravity_model: j2
+  wind_model: uniform
+  wind_m_s: [0.0, 0.0, 0.0]
+guidance:
+  guidance_law: none
+  kick_deg: 25.0
+  target_lat_deg: 39.9
+  target_lon_deg: 130.0
+options:
+  integrator: DOP853
+  rtol: 1e-6
+  atol: 1e-9
+  max_step: 1.0
+  terminate_impact: true
+  save_trajectory: true

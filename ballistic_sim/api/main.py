@@ -17,7 +17,7 @@ from ballistic_sim.api.models import (
     SimulateRequest,
     SimulateResponse,
 )
-from ballistic_sim.config import SimConfig, apply_overrides
+from ballistic_sim.config import SimConfig, ValidationIssue, apply_overrides, validate_config
 from ballistic_sim.monte_carlo import PerturbationConfig, monte_carlo_simulation
 from ballistic_sim.phases.builder import build_phases
 from ballistic_sim.presets import (
@@ -294,6 +294,11 @@ def create_app() -> FastAPI:
             return _run_simulation(mission, request)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.post("/config/validate", response_model=List[ValidationIssue])
+    def validate_endpoint(cfg: SimConfig) -> List[ValidationIssue]:
+        """接收完整 SimConfig JSON，返回结构化业务校验结果。"""
+        return validate_config(cfg)
 
     @app.post("/firecontrol/solve", response_model=FireControlResponse)
     def firecontrol_endpoint(request: FireControlRequest) -> FireControlResponse:

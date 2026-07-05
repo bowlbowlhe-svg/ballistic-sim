@@ -106,3 +106,39 @@ def test_cli_monte_carlo_outputs_cep50(tmp_path: Path, monkeypatch, capsys) -> N
     captured = capsys.readouterr()
     assert "CEP50" in captured.out
     assert _pngs_in(tmp_path), "No Monte Carlo PNG generated"
+
+
+def test_cli_config_icbm_runs(tmp_path: Path, monkeypatch, capsys) -> None:
+    """``--config configs/sample_icbm.yaml`` should run without error."""
+    from pathlib import Path as _Path
+
+    repo_root = _Path(__file__).resolve().parent.parent
+    config_path = repo_root / "configs" / "sample_icbm.yaml"
+    _run_cli(monkeypatch, ["--config", str(config_path), "--no-viz"], tmp_path)
+    captured = capsys.readouterr()
+    assert "icbm" in captured.out
+    assert "Range" in captured.out
+
+
+def test_cli_config_with_override(tmp_path: Path, monkeypatch, capsys) -> None:
+    """CLI 参数应覆盖配置文件中的值。"""
+    from pathlib import Path as _Path
+
+    repo_root = _Path(__file__).resolve().parent.parent
+    config_path = repo_root / "configs" / "sample_icbm.yaml"
+    _run_cli(
+        monkeypatch,
+        ["--config", str(config_path), "--az", "180", "--no-viz"],
+        tmp_path,
+    )
+    captured = capsys.readouterr()
+    assert "icbm" in captured.out
+
+
+def test_cli_config_no_mission_uses_config_mission(tmp_path: Path, monkeypatch) -> None:
+    """未提供 --mission 时，从配置文件中读取 mission。"""
+    from pathlib import Path as _Path
+
+    repo_root = _Path(__file__).resolve().parent.parent
+    config_path = repo_root / "configs" / "sample_icbm.yaml"
+    _run_cli(monkeypatch, ["--config", str(config_path), "--no-viz"], tmp_path)

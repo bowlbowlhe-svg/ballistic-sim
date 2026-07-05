@@ -171,6 +171,32 @@ def test_firecontrol_unsupported_mission_returns_501(client: TestClient) -> None
     assert response.status_code == 501
 
 
+def test_config_validate_returns_issues(client: TestClient) -> None:
+    """POST /config/validate returns structured validation issues."""
+    response = client.post(
+        "/config/validate",
+        json={
+            "mission": "rocket",
+            "vehicle": {"mass_kg": 1000.0, "thrust_N": 5000.0, "burn_time_s": 60.0},
+        },
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+    assert any(
+        item["severity"] == "ERROR" and "T/W" in item["message"] for item in data
+    )
+
+
+def test_config_validate_empty_vehicle_ok(client: TestClient) -> None:
+    """POST /config/validate with projectile defaults returns warnings only."""
+    response = client.post("/config/validate", json={"mission": "projectile"})
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+    assert not any(item["severity"] == "ERROR" for item in data)
+
+
 def test_create_app_returns_distinct_instances() -> None:
     """Each call to create_app returns a new FastAPI instance."""
     app1 = create_app()
