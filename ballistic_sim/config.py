@@ -230,6 +230,7 @@ class OptionsConfig(BaseModel):
     mpm_use_spin: bool = Field(default=True, description="MPM 是否启用自转偏流")
     mpm_use_dynamic_alpha: bool = Field(default=False, description="MPM 是否启用动态攻角")
     use_cache: bool = Field(default=True, description="是否启用动力学上下文模型缓存")
+    cache_maxsize: int = Field(default=10000, gt=0, description="动力学上下文模型缓存容量上限")
     monte_carlo: Optional[MonteCarloConfig] = Field(default=None, description="Monte Carlo 选项")
 
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import OrderedDict
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, Optional
 
@@ -24,6 +25,35 @@ class AeroEnv:
     Ma: float = 0.0
 
 
+class LRUDict:
+    """基于 ``collections.OrderedDict`` 的轻量 LRU 字典。"""
+
+    def __init__(self, maxsize: int = 10000):
+        self._maxsize = max(maxsize, 1)
+        self._data: OrderedDict[Any, Any] = OrderedDict()
+
+    def get(self, key: Any) -> Any:
+        """读取 key；命中时移至最近使用端。"""
+        if key not in self._data:
+            return None
+        self._data.move_to_end(key)
+        return self._data[key]
+
+    def put(self, key: Any, value: Any) -> None:
+        """写入 key 并移至最近使用端；超容时淘汰最久未用项。"""
+        self._data[key] = value
+        self._data.move_to_end(key)
+        if len(self._data) > self._maxsize:
+            self._data.popitem(last=False)
+
+    def __len__(self) -> int:
+        return len(self._data)
+
+    def clear(self) -> None:
+        """清空字典。"""
+        self._data.clear()
+
+
 class ModelCache:
     """大气、风、气动系数插值结果缓存。
 
@@ -33,13 +63,14 @@ class ModelCache:
     线程安全：本实现仅保证单线程 / 单进程安全；多线程写入需外部加锁。
     """
 
-    def __init__(self, enabled: bool = True):
+    def __init__(self, enabled: bool = True, maxsize: int = 10000):
         self._enabled = bool(enabled)
-        self._atm: Dict[Any, AtmosphereState] = {}
-        self._wind: Dict[Any, WindState] = {}
-        self._aero: Dict[Any, float] = {}
-        self._coeff: Dict[Any, float] = {}
-        self._generic: Dict[Any, Any] = {}
+        self._maxsize = max(int(maxsize), 1)
+        self._atm: LRUDict = LRUDict(self._maxsize)
+        self._wind: LRUDict = LRUDict(self._maxsize)
+        self._aero: LRUDict = LRUDict(self._maxsize)
+        self._coeff: LRUDict = LRUDict(self._maxsize)
+        self._generic: LRUDict = LRUDict(self._maxsize)
 
     @property
     def enabled(self) -> bool:
@@ -60,7 +91,7 @@ class ModelCache:
 
     def set(self, key: Any, value: Any) -> None:
         """写入通用缓存项。"""
-        self._generic[key] = value
+        self._generic.put(key, value)
 
     def atmosphere(
         self,
@@ -71,9 +102,11 @@ class ModelCache:
         if not self._enabled:
             return model(h)
         hk = round(float(h), 6)
-        if hk not in self._atm:
-            self._atm[hk] = model(h)
-        return self._atm[hk]
+        state = self._atm.get(hk)
+        if state is None:
+            state = model(h)
+            self._atm.put(hk, state)
+        return state
 
     def wind(
         self,
@@ -87,9 +120,11 @@ class ModelCache:
         hk = round(float(h), 6)
         sk: Optional[float] = None if s is None else round(float(s), 3)
         key = (hk, sk)
-        if key not in self._wind:
-            self._wind[key] = model(h) if s is None else model(h, s)
-        return self._wind[key]
+        state = self._wind.get(key)
+        if state is None:
+            state = model(h) if s is None else model(h, s)
+            self._wind.put(key, state)
+        return state
 
     def aero_coefficient(
         self,
@@ -101,9 +136,11 @@ class ModelCache:
         if not self._enabled:
             return float(model(Ma, alpha))
         key = (round(float(Ma), 6), round(float(alpha), 6))
-        if key not in self._aero:
-            self._aero[key] = float(model(Ma, alpha))
-        return self._aero[key]
+        value = self._aero.get(key)
+        if value is None:
+            value = float(model(Ma, alpha))
+            self._aero.put(key, value)
+        return value
 
     def coefficient(
         self,
@@ -115,9 +152,11 @@ class ModelCache:
         if not self._enabled:
             return float(model(x))
         key = (name, round(float(x), 6))
-        if key not in self._coeff:
-            self._coeff[key] = float(model(x))
-        return self._coeff[key]
+        value = self._coeff.get(key)
+        if value is None:
+            value = float(model(x))
+            self._coeff.put(key, value)
+        return value
 
     def stats(self) -> Dict[str, int]:
         """返回当前各缓存桶条目数。"""
@@ -184,7 +223,14 @@ class DynamicContext:
         if "use_cache" in self.options:
             self.use_cache = bool(self.options["use_cache"])
 
-        self.cache = ModelCache(enabled=self.use_cache)
+        maxsize = 10000
+        if self.cfg is not None:
+            cfg_options = getattr(self.cfg, "options", None)
+            if cfg_options is not None:
+                maxsize = int(getattr(cfg_options, "cache_maxsize", maxsize))
+        if self.options is not None and "cache_maxsize" in self.options:
+            maxsize = int(self.options["cache_maxsize"])
+        self.cache = ModelCache(enabled=self.use_cache, maxsize=maxsize)
         # 保留原始模型引用，便于外部需要时访问
         self._atmosphere_model = self.atmosphere
         self._wind_model = self.wind

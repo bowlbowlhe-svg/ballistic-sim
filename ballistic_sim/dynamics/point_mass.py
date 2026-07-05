@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, Literal
+from typing import Any, Dict, Literal, NamedTuple, Optional
 
 import numpy as np
 
@@ -17,10 +17,23 @@ from ballistic_sim.dynamics.common import (
     relative_velocity_eci,
 )
 from ballistic_sim.frames import (
+    ecef_to_eci,
     ecef_to_geodetic,
     eci_to_ecef,
+    enu_to_ecef_vec,
+    geodetic_to_ecef,
+    vel_ecef_to_eci,
 )
 from ballistic_sim.models.gravity import gravity_eci, gravity_enu
+
+
+class _AeroState(NamedTuple):
+    """单次 RHS 评估所需的气动/环境状态集合。"""
+
+    env: AeroEnv
+    v_rel: np.ndarray
+    h: float
+    wind_enu: Optional[np.ndarray]
 
 
 @dataclass
@@ -34,31 +47,48 @@ class PointMassDynamics:
     frame: Literal["ECI", "ENU"] = "ECI"
     mass: float = 1.0
     Aref: float = 0.1
+    lat0: float = 0.0
+    lon0: float = 0.0
     options: Dict[str, bool] = field(default_factory=lambda: {"drag": True, "j2": True})
 
-    def _aero_env(
+    def _aero_env_full(
         self,
+        t: float,
+        y: np.ndarray,
         ctx: DynamicContext,
-        r: np.ndarray,
-        v: np.ndarray,
         lat0: float = 0.0,
         lon0: float = 0.0,
-    ) -> AeroEnv:
-        """计算当前气动环境。"""
+    ) -> _AeroState:
+        """一次性计算 RHS 所需的气动环境、相对速度、高度与风场。
+
+        避免 ``rhs`` 中重复调用坐标转换、风场与大气模型。
+        """
+        r = y[0:3]
+        v = y[3:6]
+        wind_enu: Optional[np.ndarray] = None
         if self.frame == "ENU":
             h = float(r[2])
-            v_rel = v.copy()
+            if ctx.wind is not None:
+                w_state = ctx.wind(h)
+                wind_enu = np.asarray(w_state).reshape(3)
+                v_rel = np.asarray(v, dtype=float).copy()
+                v_rel -= wind_enu
+            else:
+                v_rel = np.asarray(v, dtype=float).copy()
         else:
             r_ecef = eci_to_ecef(r, 0.0)
             _, _, h = ecef_to_geodetic(r_ecef)
-            w_state = ctx.wind(h) if ctx.wind is not None else None
-            w_enu = np.asarray(w_state) if w_state is not None else np.zeros(3)
-            v_rel = relative_velocity_eci(r, v, w_enu, lat0, lon0)
+            if ctx.wind is not None:
+                w_state = ctx.wind(h)
+                wind_enu = np.asarray(w_state).reshape(3)
+            else:
+                wind_enu = np.zeros(3, dtype=float)
+            v_rel = relative_velocity_eci(r, v, wind_enu, lat0, lon0)
 
         atm = ctx.atmosphere(max(h, 0.0))
         vm = float(np.linalg.norm(v_rel))
         Ma = mach_number(vm, atm.c)
-        return AeroEnv(
+        env = AeroEnv(
             rho=atm.rho,
             c=atm.c,
             p=atm.p,
@@ -66,6 +96,21 @@ class PointMassDynamics:
             q=dynamic_pressure(atm.rho, vm),
             Ma=Ma,
         )
+        return _AeroState(env=env, v_rel=np.asarray(v_rel, dtype=float), h=h, wind_enu=wind_enu)
+
+    def _aero_env(
+        self,
+        ctx: DynamicContext,
+        r: np.ndarray,
+        v: np.ndarray,
+        lat0: Optional[float] = None,
+        lon0: Optional[float] = None,
+    ) -> AeroEnv:
+        """计算当前气动环境（轻量包装，保持原有签名）。"""
+        lat0_eff = self.lat0 if lat0 is None else lat0
+        lon0_eff = self.lon0 if lon0 is None else lon0
+        y = np.concatenate([np.asarray(r, dtype=float), np.asarray(v, dtype=float), [self.mass]])
+        return self._aero_env_full(0.0, y, ctx, lat0_eff, lon0_eff).env
 
     def _drag_accel(
         self,
@@ -107,20 +152,17 @@ class PointMassDynamics:
         v = y[3:6].copy()
         m = float(y[6]) if y.size > 6 else self.mass
 
-        lat0 = lon0 = 0.0
+        lat0 = self.lat0
+        lon0 = self.lon0
         if cfg is not None:
             lat0 = float(cfg.launch.lat_deg)
             lon0 = float(cfg.launch.lon_deg)
 
-        env = self._aero_env(dyn_ctx, r, v, lat0, lon0)
+        state = self._aero_env_full(t, y, dyn_ctx, lat0, lon0)
 
         if self.frame == "ENU":
-            a = gravity_enu(lat0, r[2], model="wgs84")
-            v_rel = v.copy()
-            if dyn_ctx.wind is not None:
-                w = dyn_ctx.wind(r[2])
-                v_rel -= w.vector
-            a += self._drag_accel(dyn_ctx, v_rel, env, m)
+            a = gravity_enu(lat0, state.h, model="wgs84")
+            a += self._drag_accel(dyn_ctx, state.v_rel, state.env, m)
             if self.options.get("coriolis", False):
                 lat_rad = np.deg2rad(lat0)
                 Omega_n = OMEGA_EARTH * np.cos(lat_rad)
@@ -129,16 +171,9 @@ class PointMassDynamics:
                 a[1] += -2.0 * (Omega_u * v[0])
                 a[2] += 2.0 * (Omega_n * v[0])
         else:
-            r_ecef = eci_to_ecef(r, 0.0)
-            _, _, h = ecef_to_geodetic(r_ecef)
             gm = gravity_eci(r, model="j2" if self.options.get("j2", True) else "point")
             a = gm.copy()
-            w_enu = dyn_ctx.wind(h) if dyn_ctx.wind is not None else None
-            wind_vec = None
-            if w_enu is not None and float(np.linalg.norm(np.asarray(w_enu))) > 0.0:
-                wind_vec = np.asarray(w_enu).reshape(3)
-            v_rel = relative_velocity_eci(r, v, wind_vec, lat0, lon0)
-            a += self._drag_accel(dyn_ctx, v_rel, env, m)
+            a += self._drag_accel(dyn_ctx, state.v_rel, state.env, m)
 
         return np.concatenate([v, a, [0.0]])
 
@@ -149,6 +184,39 @@ class PointMassDynamics:
     def native_frame(self) -> str:
         """原生坐标系。"""
         return self.frame
+
+    def initial_state(
+        self,
+        v0: float,
+        theta_deg: float,
+        az_deg: float,
+        h0: float = 0.0,
+    ) -> np.ndarray:
+        """由发射条件构造本坐标系下的初态 ``[r(3), v(3), m]``。"""
+        theta = np.deg2rad(float(theta_deg))
+        az = np.deg2rad(float(az_deg))
+        speed = float(v0)
+        lat0 = self.lat0
+        lon0 = self.lon0
+        if self.frame == "ENU":
+            r0 = np.array([0.0, 0.0, float(h0)], dtype=float)
+        else:
+            r_ecef = geodetic_to_ecef(lat0, lon0, float(h0))
+            r0 = ecef_to_eci(r_ecef, 0.0)
+        v_enu = np.array(
+            [
+                speed * np.cos(theta) * np.sin(az),
+                speed * np.cos(theta) * np.cos(az),
+                speed * np.sin(theta),
+            ],
+            dtype=float,
+        )
+        if self.frame == "ENU":
+            v0_vec = v_enu
+        else:
+            v_ecef = enu_to_ecef_vec(v_enu, lat0, lon0)
+            v0_vec = vel_ecef_to_eci(r_ecef, v_ecef, 0.0)
+        return np.concatenate([r0, v0_vec, [self.mass]])
 
     def telemetry(self, t: float, y: np.ndarray, ctx: Any) -> Dict[str, Any]:
         """返回当前时刻派生量字典。"""

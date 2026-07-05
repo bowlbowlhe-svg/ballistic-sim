@@ -143,3 +143,52 @@ def test_cached_and_uncached_simulation_results_equal() -> None:
     assert res_cached.stop_reason == res_uncached.stop_reason
     assert res_cached.t[-1] == pytest.approx(res_uncached.t[-1], rel=1e-9)
     assert np.allclose(res_cached.y[-1], res_uncached.y[-1], rtol=1e-9)
+
+
+def test_cache_capacity_bound() -> None:
+    """连续插入超过容量上限的不同 key 后缓存条目数受控。"""
+    cache = ModelCache(enabled=True, maxsize=10000)
+    atm = make_atmosphere("isa")
+    for i in range(10010):
+        cache.atmosphere(float(i) * 0.1, atm)
+    assert cache.stats()["atmosphere"] <= 10000
+
+
+def test_cache_lru_eviction() -> None:
+    """LRU 淘汰策略保留最近访问的 key。"""
+    cache = ModelCache(enabled=True, maxsize=10)
+    atm = make_atmosphere("isa")
+    cache.atmosphere(1.0, atm)
+    cache.atmosphere(2.0, atm)
+    # 访问 1.0，使其成为最近使用
+    cache.atmosphere(1.0, atm)
+    # 继续插入 9 个新 key，总容量 10，应淘汰 2.0 而非 1.0
+    for i in range(3, 12):
+        cache.atmosphere(float(i), atm)
+    assert cache.stats()["atmosphere"] == 10
+    assert cache._atm.get(round(1.0, 6)) is not None
+    assert cache._atm.get(round(2.0, 6)) is None
+
+
+def test_cache_clear_with_bounded_cache() -> None:
+    """带容量上限的缓存 clear() 后所有桶归零。"""
+    cache = ModelCache(enabled=True, maxsize=5)
+    cache.atmosphere(100.0, make_atmosphere("isa"))
+    cache.wind(10.0, UniformWind())
+    cache.set("foo", "bar")
+    cache.clear()
+    assert cache.get("foo") is None
+    assert all(v == 0 for v in cache.stats().values())
+
+
+def test_cache_maxsize_from_options_config() -> None:
+    """DynamicContext 读取 OptionsConfig.cache_maxsize 初始化缓存容量。"""
+    cfg = SimConfig(
+        mission="projectile",
+        vehicle=VehicleConfig(mass_kg=10.0, diameter_m=0.1, cd=0.3),
+        launch=LaunchConfig(),
+        environment=EnvironmentConfig(),
+        options=OptionsConfig(cache_maxsize=7),
+    )
+    ctx = _resolve_dynamics_context(cfg)
+    assert ctx.cache._maxsize == 7

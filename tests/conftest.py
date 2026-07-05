@@ -10,6 +10,7 @@ import matplotlib
 import pytest
 
 matplotlib.use("Agg", force=True)
+import matplotlib.pyplot as plt  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
@@ -17,9 +18,7 @@ def _reset_matplotlib_backend():
     """Reset matplotlib backend to Agg after each test to isolate GUI tests."""
     yield
     matplotlib.use("Agg", force=True)
-    plt = matplotlib.pyplot
-    if hasattr(plt, "close"):
-        plt.close("all")
+    plt.close("all")
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
