@@ -110,13 +110,13 @@ class VehicleConfig(BaseModel):
     burn_time_s: Optional[float] = Field(default=None, gt=0, description="发动机工作时间 (s)")
     stages: Optional[List[StageConfig]] = Field(default=None, description="多级火箭 stage 列表")
     drag_law: Optional[Literal["G1", "G7"]] = Field(default=None, description="弹丸阻力定律 G1/G7")
-    # 6-DOF 可选参数
-    Ix: Optional[float] = Field(default=None, gt=0, description="轴向转动惯量 (kg·m²)")
-    It: Optional[float] = Field(default=None, gt=0, description="横向转动惯量 (kg·m²)")
+    # 6-DOF / MPM 可选参数
+    Ix: Optional[float] = Field(default=0.1, gt=0, description="轴向转动惯量 (kg·m²)")
+    It: Optional[float] = Field(default=1.0, gt=0, description="横向转动惯量 (kg·m²)")
     x_cp_cg: Optional[float] = Field(
-        default=None, description="压心距质心距离 (m)，正表示压心在质心前方"
+        default=0.05, description="压心距质心距离 (m)，正表示压心在质心前方"
     )
-    twist_cal: Optional[float] = Field(default=None, gt=0, description="缠距 (caliber)")
+    twist_cal: Optional[float] = Field(default=20.0, gt=0, description="缠距 (caliber)")
 
 
 class LaunchConfig(BaseModel):

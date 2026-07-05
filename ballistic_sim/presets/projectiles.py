@@ -15,10 +15,8 @@ from ballistic_sim.config import (
     SimConfig,
     VehicleConfig,
 )
-from ballistic_sim.dynamics.mpm import MPMOptions, MPMDynamics
-from ballistic_sim.models.aerodynamics import DRAG_G1, DRAG_G7
 from ballistic_sim.phases.builder import build_phases
-from ballistic_sim.presets.loader import get_projectile, list_projectiles, make_aero_tables
+from ballistic_sim.presets.loader import get_projectile, list_projectiles
 
 
 def _projectile_config_from_preset(name: str) -> SimConfig:
@@ -26,7 +24,6 @@ def _projectile_config_from_preset(name: str) -> SimConfig:
     from typing import Literal
 
     p = get_projectile(name)
-    make_aero_tables(p)
     drag_name = p.get("drag", "G1")
     drag_law: Literal["G1", "G7"] = "G7" if drag_name == "G7" else "G1"
     return SimConfig(
@@ -37,6 +34,9 @@ def _projectile_config_from_preset(name: str) -> SimConfig:
             cd=float(p["i"]),
             area_ref_m2=None,
             drag_law=drag_law,
+            twist_cal=float(p.get("twist_cal", 20.0)),
+            Ix=float(p.get("Ix", 0.1)),
+            It=float(p.get("It", 1.0)),
         ),
         launch=LaunchConfig(
             lat_deg=float(p["lat"]),
@@ -60,34 +60,6 @@ def _projectile_config_from_preset(name: str) -> SimConfig:
             max_step=1.0,
             terminate_impact=True,
         ),
-    )
-
-
-def _projectile_dynamics_from_preset(name: str) -> MPMDynamics:
-    """由 YAML 预设构造 MPM 动力学模块。"""
-    p = get_projectile(name)
-    aero = make_aero_tables(p)
-    drag_name = p.get("drag", "G1")
-    drag_law = DRAG_G7 if drag_name == "G7" else DRAG_G1
-    return MPMDynamics(
-        mass_kg=float(p["m"]),
-        diameter_m=float(p["d"]),
-        form_factor=float(p["i"]),
-        drag_law=drag_law,
-        twist_cal=float(p["twist_cal"]),
-        Ix=float(p["Ix"]),
-        It=float(p["It"]),
-        CMa_table=aero["CMa_table"],
-        CLa_table=aero["CLa_table"],
-        Clp_table=aero["Clp_table"],
-        options=MPMOptions(
-            use_drag=True,
-            use_wind=False,
-            use_coriolis=True,
-            use_spin=True,
-            use_dynamic_alpha=False,
-        ),
-        lat_deg=float(p["lat"]),
     )
 
 
@@ -120,6 +92,5 @@ __all__ = [
     "m107_phases",
     "projectile_phases",
     "_projectile_config_from_preset",
-    "_projectile_dynamics_from_preset",
     "list_projectiles",
 ]

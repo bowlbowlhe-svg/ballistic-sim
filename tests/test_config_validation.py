@@ -2,6 +2,12 @@
 
 from __future__ import annotations
 
+import json
+import tempfile
+from pathlib import Path
+
+import pytest
+
 from ballistic_sim.config import (
     GuidanceConfig,
     LaunchConfig,
@@ -10,6 +16,7 @@ from ballistic_sim.config import (
     SimConfig,
     StageConfig,
     VehicleConfig,
+    load_config,
     validate_config,
 )
 
@@ -65,6 +72,17 @@ def test_zero_thrust_with_positive_burn_time_error():
     )
     issues = validate_config(cfg)
     issue = _find_issue(issues, "vehicle.thrust_N", "ERROR")
+    assert issue is not None
+
+
+def test_negative_burn_time_error():
+    """burn_time_s <= 0 时报 ERROR。"""
+    cfg = SimConfig(
+        mission="rocket",
+        vehicle=VehicleConfig.model_construct(mass_kg=1000.0, thrust_N=20000.0, burn_time_s=0.0),
+    )
+    issues = validate_config(cfg)
+    issue = _find_issue(issues, "vehicle.burn_time_s", "ERROR")
     assert issue is not None
 
 
@@ -247,3 +265,110 @@ def test_proportional_guidance_for_non_missile_warning():
     issues = validate_config(cfg)
     issue = _find_issue(issues, "guidance.guidance_law", "WARNING")
     assert issue is not None
+
+
+def test_stage_negative_m_prop_error():
+    """stage m_prop < 0 时报 ERROR。"""
+    stage = StageConfig.model_construct(
+        thrust_sl=1.2e6,
+        thrust_vac=1.35e6,
+        isp_vac=260.0,
+        m_prop=-100.0,
+        m_dry=8000.0,
+    )
+    cfg = SimConfig(
+        mission="icbm",
+        vehicle=VehicleConfig.model_construct(mass_kg=50000.0, stages=[stage]),
+    )
+    issues = validate_config(cfg)
+    issue = _find_issue(issues, "vehicle.stages[0].m_prop", "ERROR")
+    assert issue is not None
+
+
+def test_stage_negative_m_dry_error():
+    """stage m_dry < 0 时报 ERROR。"""
+    stage = StageConfig.model_construct(
+        thrust_sl=1.2e6,
+        thrust_vac=1.35e6,
+        isp_vac=260.0,
+        m_prop=30000.0,
+        m_dry=-100.0,
+    )
+    cfg = SimConfig(
+        mission="icbm",
+        vehicle=VehicleConfig.model_construct(mass_kg=50000.0, stages=[stage]),
+    )
+    issues = validate_config(cfg)
+    issue = _find_issue(issues, "vehicle.stages[0].m_dry", "ERROR")
+    assert issue is not None
+
+
+def test_stage_non_positive_thrust_vac_error():
+    """stage thrust_vac <= 0 时报 ERROR。"""
+    cfg = SimConfig(
+        mission="icbm",
+        vehicle=VehicleConfig(
+            mass_kg=50000.0,
+            stages=[
+                StageConfig(
+                    thrust_sl=1.2e6,
+                    thrust_vac=0.0,
+                    isp_vac=260.0,
+                    m_prop=30000.0,
+                    m_dry=8000.0,
+                )
+            ],
+        ),
+    )
+    issues = validate_config(cfg)
+    issue = _find_issue(issues, "vehicle.stages[0].thrust_vac", "ERROR")
+    assert issue is not None
+
+
+def test_stage_non_positive_isp_vac_error():
+    """stage isp_vac <= 0 时报 ERROR。"""
+    stage = StageConfig.model_construct(
+        thrust_sl=1.2e6,
+        thrust_vac=1.35e6,
+        isp_vac=0.0,
+        m_prop=30000.0,
+        m_dry=8000.0,
+    )
+    cfg = SimConfig(
+        mission="icbm",
+        vehicle=VehicleConfig.model_construct(mass_kg=50000.0, stages=[stage]),
+    )
+    issues = validate_config(cfg)
+    issue = _find_issue(issues, "vehicle.stages[0].isp_vac", "ERROR")
+    assert issue is not None
+
+
+def test_stage_thrust_sl_greater_than_vac_warning():
+    """stage thrust_sl > thrust_vac 时报 WARNING。"""
+    cfg = SimConfig(
+        mission="icbm",
+        vehicle=VehicleConfig(
+            mass_kg=50000.0,
+            stages=[
+                StageConfig(
+                    thrust_sl=1.4e6,
+                    thrust_vac=1.35e6,
+                    isp_vac=260.0,
+                    m_prop=30000.0,
+                    m_dry=8000.0,
+                )
+            ],
+        ),
+    )
+    issues = validate_config(cfg)
+    issue = _find_issue(issues, "vehicle.stages[0].thrust_sl", "WARNING")
+    assert issue is not None
+
+
+def test_load_config_rejects_non_dict_json():
+    """load_config 对顶层非 dict 的 JSON 应抛 ValueError。"""
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "cfg.json"
+        path.write_text(json.dumps([1, 2, 3]), encoding="utf-8")
+        with pytest.raises(ValueError, match="顶层必须是字典"):
+            load_config(str(path))

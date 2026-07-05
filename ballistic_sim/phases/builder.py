@@ -150,6 +150,9 @@ def _build_projectile_phases(cfg: SimConfig) -> List[Phase]:
         diameter_m=cfg.vehicle.diameter_m,
         form_factor=cfg.vehicle.cd or 1.0,
         drag_law=drag_law,
+        twist_cal=cfg.vehicle.twist_cal or 20.0,
+        Ix=cfg.vehicle.Ix or 0.1,
+        It=cfg.vehicle.It or 1.0,
         options=opt,
         lat_deg=cfg.launch.lat_deg,
     )
