@@ -121,6 +121,41 @@ class FireControlResponse(BaseModel):
     message: Optional[str] = None
 
 
+class Trajectory3DRequest(BaseModel):
+    """``POST /viz/trajectory3d`` 请求体。"""
+
+    mission: str = Field(
+        default="projectile",
+        pattern=r"^(projectile|missile|rocket|icbm|suborbital)$",
+        description="任务类型",
+    )
+    vehicle: Optional[VehicleConfig] = None
+    launch: Optional[LaunchConfig] = None
+    environment: Optional[EnvironmentConfig] = None
+    guidance: Optional[GuidanceConfig] = None
+    options: Optional[OptionsConfig] = None
+    preset: Optional[str] = Field(default=None, description="任务预设名")
+    format: str = Field(
+        default="json",
+        pattern=r"^(json|html)$",
+        description="返回格式：json 点序列 或 html 字符串",
+    )
+    include_earth: bool = Field(default=True, description="是否在 HTML 中显示地球球面")
+
+
+class Trajectory3DResponse(BaseModel):
+    """``POST /viz/trajectory3d`` 响应体。"""
+
+    mission: str
+    stop_reason: str
+    format: str
+    x_km: Optional[List[float]] = None
+    y_km: Optional[List[float]] = None
+    z_km: Optional[List[float]] = None
+    alt_m: Optional[List[float]] = None
+    html: Optional[str] = None
+
+
 class HealthResponse(BaseModel):
     """``GET /health`` 响应体。"""
 

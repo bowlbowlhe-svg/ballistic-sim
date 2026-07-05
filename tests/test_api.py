@@ -215,3 +215,62 @@ def test_dependency_guards_raise_friendly_error(monkeypatch) -> None:
     monkeypatch.setitem(sys.modules, "uvicorn", None)
     with pytest.raises(ImportError, match="pip install ballistic_sim\\[web\\]"):
         require_uvicorn()
+
+
+def test_trajectory3d_json_projectile(client: TestClient) -> None:
+    """POST /viz/trajectory3d returns ECEF point sequence for projectile."""
+    response = client.post(
+        "/viz/trajectory3d",
+        json={"mission": "projectile", "format": "json"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["mission"] == "projectile"
+    assert data["format"] == "json"
+    assert len(data["x_km"]) > 0
+    assert len(data["x_km"]) == len(data["y_km"]) == len(data["z_km"]) == len(data["alt_m"])
+
+
+def test_trajectory3d_json_rocket(client: TestClient) -> None:
+    """POST /viz/trajectory3d returns ECEF point sequence for rocket."""
+    response = client.post(
+        "/viz/trajectory3d",
+        json={"mission": "rocket", "format": "json"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["mission"] == "rocket"
+    assert data["format"] == "json"
+    assert len(data["x_km"]) > 0
+
+
+def test_trajectory3d_html_projectile(client: TestClient) -> None:
+    """POST /viz/trajectory3d with format=html returns HTML string."""
+    pytest.importorskip("plotly", reason="plotly not installed")
+    response = client.post(
+        "/viz/trajectory3d",
+        json={"mission": "projectile", "format": "html", "include_earth": True},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["format"] == "html"
+    assert data["html"] is not None
+    assert "<html" in data["html"]
+
+
+def test_trajectory3d_unknown_mission_returns_422(client: TestClient) -> None:
+    """Unsupported mission in request body is rejected by pydantic (422)."""
+    response = client.post(
+        "/viz/trajectory3d",
+        json={"mission": "ufo", "format": "json"},
+    )
+    assert response.status_code == 422
+
+
+def test_trajectory3d_invalid_format_returns_422(client: TestClient) -> None:
+    """Invalid format pattern yields 422."""
+    response = client.post(
+        "/viz/trajectory3d",
+        json={"mission": "projectile", "format": "xml"},
+    )
+    assert response.status_code == 422

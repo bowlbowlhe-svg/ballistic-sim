@@ -16,6 +16,8 @@ from ballistic_sim.api.models import (
     MonteCarloResponse,
     SimulateRequest,
     SimulateResponse,
+    Trajectory3DRequest,
+    Trajectory3DResponse,
 )
 from ballistic_sim.config import SimConfig, ValidationIssue, apply_overrides, validate_config
 from ballistic_sim.monte_carlo import PerturbationConfig, monte_carlo_simulation
@@ -38,6 +40,7 @@ from ballistic_sim.viz import (
     geodetic_coords,
     speed,
 )
+from ballistic_sim.viz.earth import result_to_ecef
 
 require_fastapi()
 from fastapi import FastAPI, HTTPException  # noqa: E402
@@ -48,6 +51,19 @@ from fastapi.staticfiles import StaticFiles  # noqa: E402
 def _web_root() -> Path:
     """Return the project ``web/`` directory regardless of CWD."""
     return Path(__file__).resolve().parent.parent.parent / "web"
+
+
+def _sim_request_from_trajectory_request(request: Trajectory3DRequest) -> SimulateRequest:
+    """将 3D 可视化请求体转换为普通仿真请求体。"""
+    return SimulateRequest(
+        vehicle=request.vehicle,
+        launch=request.launch,
+        environment=request.environment,
+        guidance=request.guidance,
+        options=request.options,
+        preset=request.preset,
+        include_trajectory=False,
+    )
 
 
 def _merge_request(cfg: SimConfig, request: SimulateRequest) -> SimConfig:
@@ -308,6 +324,49 @@ def create_app() -> FastAPI:
                 detail="当前仅 projectile/missile 支持火控求解",
             )
         return _solve_fire_control(request)
+
+    @app.post("/viz/trajectory3d", response_model=Trajectory3DResponse)
+    def trajectory3d_endpoint(request: Trajectory3DRequest) -> Trajectory3DResponse:
+        """接收仿真参数并返回 3D 轨迹 JSON 点序列或 HTML 字符串。"""
+        sim_request = _sim_request_from_trajectory_request(request)
+        try:
+            cfg, phases = _build_config_and_phases(request.mission, sim_request)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+        result = simulate(cfg, phases=phases if phases else build_phases(cfg))
+
+        if request.format == "html":
+            try:
+                from ballistic_sim.viz.interactive3d import plot_trajectory_3d
+            except ImportError as exc:
+                raise HTTPException(
+                    status_code=501,
+                    detail=f"3D 可视化依赖缺失: {exc}",
+                ) from exc
+            fig = plot_trajectory_3d(
+                result,
+                show_earth=request.include_earth,
+                show_coastlines=request.include_earth,
+            )
+            html = fig.to_html(full_html=True, include_plotlyjs="cdn")
+            return Trajectory3DResponse(
+                mission=cfg.mission,
+                stop_reason=result.stop_reason,
+                format="html",
+                html=html,
+            )
+
+        x_m, y_m, z_m, alt_m = result_to_ecef(result)
+        return Trajectory3DResponse(
+            mission=cfg.mission,
+            stop_reason=result.stop_reason,
+            format="json",
+            x_km=[float(v) for v in x_m / 1e3],
+            y_km=[float(v) for v in y_m / 1e3],
+            z_km=[float(v) for v in z_m / 1e3],
+            alt_m=[float(v) for v in alt_m],
+        )
 
     web_root = _web_root()
     if web_root.is_dir():

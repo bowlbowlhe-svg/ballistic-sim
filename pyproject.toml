@@ -44,6 +44,7 @@ srtm = ["srtm.py>=0.3"]
 gpu = ["cupy>=13.0"]  # 安装时按本机 CUDA 版本选择对应 wheel，如 cupy-cuda11x / cupy-cuda12x
 web = ["fastapi>=0.100", "uvicorn[standard]>=0.23", "httpx>=0.24"]
 anim = ["matplotlib>=3.7", "Pillow>=10.0"]
+viz3d = ["plotly>=5.0", "kaleido>=0.2"]
 all = [
     "requests>=2.28",
     "netCDF4>=1.6",
@@ -56,6 +57,8 @@ all = [
     "uvicorn[standard]>=0.23",
     "httpx>=0.24",
     "Pillow>=10.0",
+    "plotly>=5.0",
+    "kaleido>=0.2",
 ]
 
 [project.scripts]

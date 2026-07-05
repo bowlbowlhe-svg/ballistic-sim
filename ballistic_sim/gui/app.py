@@ -23,6 +23,7 @@ from ballistic_sim.gui.runner import SimulationRunner
 from ballistic_sim.phases.builder import build_phases
 from ballistic_sim.simulator import SimResult
 from ballistic_sim.viz import attach_launch_lla
+from ballistic_sim.viz.interactive3d import plot_trajectory_3d
 from ballistic_sim.viz.profile import plot_altitude_range
 
 
@@ -37,6 +38,7 @@ class BallisticGuiApp(ttk.Frame):
 
         self._runner = SimulationRunner()
         self._poll_id: Optional[str] = None
+        self._last_result: Optional[SimResult] = None
 
         self._build_toolbar()
         self._build_paned_body()
@@ -108,6 +110,12 @@ class BallisticGuiApp(ttk.Frame):
         self._summary_text = tk.Text(right, wrap="word", height=10)
         self._summary_text.pack(fill="x", padx=4, pady=4)
 
+        self._right_notebook = ttk.Notebook(right)
+        self._right_notebook.pack(fill="both", expand=True, padx=4, pady=4)
+
+        tab_2d = ttk.Frame(self._right_notebook)
+        self._right_notebook.add(tab_2d, text="2D 曲线")
+
         import matplotlib
 
         matplotlib.use("TkAgg")
@@ -116,8 +124,23 @@ class BallisticGuiApp(ttk.Frame):
 
         self._fig = Figure(figsize=(8, 6), dpi=100)
         self._ax = self._fig.add_subplot(111)
-        self._canvas = FigureCanvasTkAgg(self._fig, master=right)
+        self._canvas = FigureCanvasTkAgg(self._fig, master=tab_2d)
         self._canvas.get_tk_widget().pack(fill="both", expand=True, padx=4, pady=4)
+
+        tab_3d = ttk.Frame(self._right_notebook)
+        self._right_notebook.add(tab_3d, text="3D 轨迹")
+
+        self._3d_status_label = tk.Label(
+            tab_3d,
+            text="点击按钮生成 3D 轨迹（需安装 plotly）",
+            wraplength=600,
+        )
+        self._3d_status_label.pack(pady=12)
+        ttk.Button(
+            tab_3d,
+            text="生成 3D 轨迹",
+            command=self._on_generate_3d,
+        ).pack(pady=4)
 
     # -------------------------------------------------------------------------
     # 事件处理
@@ -237,7 +260,36 @@ class BallisticGuiApp(ttk.Frame):
 
         self._poll_id = self.after(100, _poll)
 
+    def _on_generate_3d(self) -> None:
+        """生成 3D 轨迹 HTML 并显示保存路径（无显示环境时优雅降级）。"""
+        if self._last_result is None or self._last_result.y.size == 0:
+            self._3d_status_label.config(text="尚无可用仿真结果")
+            return
+
+        try:
+            import plotly  # noqa: F401
+        except ImportError:
+            self._3d_status_label.config(
+                text="plotly 未安装，请执行 pip install ballistic_sim[viz3d]"
+            )
+            return
+
+        import tempfile
+        import webbrowser
+
+        html_path = Path(tempfile.gettempdir()) / "ballistic_sim_3d.html"
+        try:
+            plot_trajectory_3d(self._last_result, output_path=html_path)
+            self._3d_status_label.config(text=f"3D 轨迹已保存: {html_path}")
+            try:
+                webbrowser.open(f"file://{html_path}")
+            except Exception:  # noqa: BLE001
+                pass
+        except Exception as exc:  # noqa: BLE001
+            self._3d_status_label.config(text=f"生成 3D 轨迹失败: {exc}")
+
     def _display_result(self, cfg: SimConfig, result: SimResult) -> None:
+        self._last_result = result
         attach_launch_lla(result, cfg.launch.lat_deg, cfg.launch.lon_deg, cfg.launch.alt_m)
         summary = _compute_summary(cfg, result)
 

@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Ballistic Sim Web API</title>
+  <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -45,6 +46,13 @@
     @media (max-width: 600px) {
       .grid { grid-template-columns: 1fr; }
     }
+    #plot3d {
+      width: 100%;
+      height: 500px;
+      margin-top: 1rem;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
   </style>
 </head>
 <body>
@@ -83,12 +91,18 @@
   <h2>响应</h2>
   <pre id="response">等待请求...</pre>
 
+  <h2>3D 轨迹</h2>
+  <button id="viz3dBtn" type="button">生成 3D 轨迹</button>
+  <div id="plot3d"></div>
+
   <script>
     const form = document.getElementById('simForm');
     const missionSelect = document.getElementById('mission');
     const endpointSelect = document.getElementById('endpoint');
     const payloadBox = document.getElementById('payload');
     const responseBox = document.getElementById('response');
+    const viz3dBtn = document.getElementById('viz3dBtn');
+    const plot3d = document.getElementById('plot3d');
 
     endpointSelect.addEventListener('change', () => {
       if (endpointSelect.value === 'firecontrol') {
@@ -144,6 +158,77 @@
         responseBox.textContent = JSON.stringify({ status: res.status, body: data }, null, 2);
       } catch (err) {
         responseBox.textContent = '网络错误: ' + err.message;
+      }
+    });
+
+    viz3dBtn.addEventListener('click', async () => {
+      if (typeof Plotly === 'undefined') {
+        plot3d.textContent = '无法加载 Plotly CDN，请检查网络连接。';
+        return;
+      }
+
+      plot3d.textContent = '正在生成 3D 轨迹...';
+      const mission = missionSelect.value;
+      let body;
+      try {
+        body = JSON.parse(payloadBox.value);
+      } catch (err) {
+        plot3d.textContent = 'JSON 解析错误: ' + err.message;
+        return;
+      }
+
+      try {
+        const res = await fetch('/viz/trajectory3d', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mission: mission, ...body, format: 'json' })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          plot3d.textContent = '请求失败: ' + JSON.stringify(data, null, 2);
+          return;
+        }
+        if (!data.x_km || !data.y_km || !data.z_km) {
+          plot3d.textContent = '返回数据缺少坐标序列。';
+          return;
+        }
+
+        const trajectoryTrace = {
+          type: 'scatter3d',
+          mode: 'lines',
+          x: data.x_km,
+          y: data.y_km,
+          z: data.z_km,
+          line: {
+            color: data.alt_m,
+            colorscale: 'Viridis',
+            width: 4,
+            colorbar: { title: 'Altitude (m)' }
+          },
+          name: 'Trajectory'
+        };
+        const markerTrace = {
+          type: 'scatter3d',
+          mode: 'markers',
+          x: [data.x_km[0], data.x_km[data.x_km.length - 1]],
+          y: [data.y_km[0], data.y_km[data.y_km.length - 1]],
+          z: [data.z_km[0], data.z_km[data.z_km.length - 1]],
+          marker: { size: 6, color: ['green', 'red'] },
+          name: 'Start / End'
+        };
+        const layout = {
+          title: '3D Trajectory (ECEF)',
+          scene: {
+            xaxis: { title: 'X (km)' },
+            yaxis: { title: 'Y (km)' },
+            zaxis: { title: 'Z (km)' },
+            aspectmode: 'data'
+          },
+          margin: { l: 0, r: 0, b: 0, t: 40 }
+        };
+        Plotly.newPlot('plot3d', [trajectoryTrace, markerTrace], layout);
+      } catch (err) {
+        plot3d.textContent = '网络错误: ' + err.message;
       }
     });
   </script>
