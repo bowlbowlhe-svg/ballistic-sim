@@ -31,8 +31,7 @@ def test_m107_build_phases_mpm_dynamics_matches_preset() -> None:
 def test_m107_trajectory_regression(golden_m107: Dict[str, Any]) -> None:
     """m107 preset 走 build_phases 后的 trajectory 与 Stage 1 前 golden 一致（容差稍宽）。"""
     cfg = m107_config()
-    phases = build_phases(cfg)
-    result = simulate(cfg, phases)
+    result = simulate(cfg)
 
     y_end = result.y[-1]
     scalars = golden_m107["scalars"]
@@ -61,8 +60,8 @@ def test_default_vehicle_config_explicit_equals_implicit() -> None:
             x_cp_cg=0.05,
         ),
     )
-    res_implicit = simulate(cfg_implicit, build_phases(cfg_implicit))
-    res_explicit = simulate(cfg_explicit, build_phases(cfg_explicit))
+    res_implicit = simulate(cfg_implicit)
+    res_explicit = simulate(cfg_explicit)
 
     assert res_implicit.t[-1] == pytest.approx(res_explicit.t[-1], rel=1e-12)
     assert float(np.linalg.norm(res_implicit.y[-1, 0:2])) == pytest.approx(

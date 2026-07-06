@@ -31,7 +31,7 @@ def _simulate_impact_en(
     overrides = {"launch.elevation_deg": float(qe_deg), "launch.azimuth_deg": float(az_deg)}
     run_cfg = apply_overrides(cfg, overrides)
     try:
-        res = simulate(run_cfg, phases=[])
+        res = simulate(run_cfg)
     except Exception:  # noqa: BLE001
         return float("nan"), float("nan"), None
     if res.y.size == 0:

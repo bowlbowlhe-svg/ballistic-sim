@@ -45,7 +45,7 @@ def test_m107_firecontrol_latlon(target_lat: float, target_lon: float) -> None:
             "launch.azimuth_deg": float(sol["az_deg"]),
         },
     )
-    res = simulate(run_cfg, phases=[])
+    res = simulate(run_cfg)
     # MPM 结果位于发射点 ENU，先转 ECEF 再求大地坐标
     e, n = float(res.y[-1, 0]), float(res.y[-1, 1])
     r_ecef = geodetic_to_ecef(cfg.launch.lat_deg, cfg.launch.lon_deg, 0.0) + enu_to_ecef_vec(

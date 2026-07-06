@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import warnings
 from pathlib import Path
 from typing import Any
 
@@ -169,7 +170,13 @@ def test_rhs_enu_smoke_via_simulate() -> None:
         lat0=cfg.launch.lat_deg,
         lon0=cfg.launch.lon_deg,
     )
-    result = simulate(cfg, phases=[phase])
+    # 直接构造 PointMassDynamics/Phase 进行 smoke 测试，属于 phase 显式传参的合法例外。
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        # 直接构造 PointMassDynamics/Phase 进行 smoke 测试，属于 phase 显式传参的合法例外。
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        result = simulate(cfg, phases=[phase])
     assert result.stop_reason == "completed"
     assert len(result.t) > 2
     # 落地事件应触发
@@ -209,7 +216,10 @@ def test_rhs_eci_smoke_via_simulate() -> None:
         lat0=cfg.launch.lat_deg,
         lon0=cfg.launch.lon_deg,
     )
-    result = simulate(cfg, phases=[phase])
+    # 直接构造 PointMassDynamics/Phase 进行 smoke 测试，属于 phase 显式传参的合法例外。
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        result = simulate(cfg, phases=[phase])
     assert result.stop_reason == "completed"
     assert len(result.t) > 2
 

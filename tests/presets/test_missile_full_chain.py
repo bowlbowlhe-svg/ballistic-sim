@@ -24,7 +24,7 @@ def test_icbm_8000_full_chain_smoke() -> None:
     assert "再入段" in names
     assert "终点" in names
 
-    res = simulate(cfg, phases)
+    res = simulate(cfg)
     assert res.stop_reason == "completed"
     assert res.t.size > 0
 

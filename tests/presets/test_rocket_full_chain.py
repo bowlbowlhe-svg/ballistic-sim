@@ -49,7 +49,7 @@ def test_generic3_3stage_full_chain_smoke() -> None:
     assert "滑行" in names
     assert "轨道插入" in names
 
-    res = simulate(cfg, phases)
+    res = simulate(cfg)
     assert res.stop_reason == "completed"
     assert res.t.size > 0
 
@@ -78,7 +78,7 @@ def test_cz3b_orbital_insertion_smoke() -> None:
     assert any("P1" in n for n in names)
     assert any("P4" in n for n in names)
 
-    res = simulate(cfg, phases)
+    res = simulate(cfg)
     assert res.stop_reason == "completed"
 
     event_names = [ev.get("name", "") for ev in res.event_log]

@@ -20,7 +20,6 @@ from ballistic_sim.gui.builder import (
 )
 from ballistic_sim.gui.fields import build_form, read_model_variables, update_model_variables
 from ballistic_sim.gui.runner import SimulationRunner
-from ballistic_sim.phases.builder import build_phases
 from ballistic_sim.simulator import SimResult
 from ballistic_sim.viz import attach_launch_lla
 from ballistic_sim.viz.interactive3d import plot_trajectory_3d
@@ -225,15 +224,9 @@ class BallisticGuiApp(ttk.Frame):
             messagebox.showerror("配置错误", f"读取参数失败: {exc}")
             return
 
-        try:
-            phases = build_phases(cfg)
-        except Exception as exc:  # noqa: BLE001
-            messagebox.showerror("阶段构造错误", f"无法构造飞行阶段: {exc}")
-            return
-
         self._summary_text.delete("1.0", "end")
         self._summary_text.insert("end", "正在运行仿真...\n")
-        self._runner.run(cfg, phases)
+        self._runner.run(cfg)
         self._schedule_poll(cfg)
 
     def _schedule_poll(self, cfg: SimConfig) -> None:

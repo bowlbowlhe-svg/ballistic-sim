@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/).
 
+## [0.5.0] - 2026-07-06
+
+### Removed
+
+- 移除 6 个已弃用的 phase 工厂函数（P1 Stage 3）。
+
+### Changed
+
+- `simulate(cfg, phases=None)` 现在自动调用 `build_phases(cfg)` 构造阶段；显式传入 `phases` 自 v0.5.0 起已弃用，请改用 `simulate(cfg)`。
+- CLI、API、Monte Carlo、制导 targeting、GUI 等内部调用方全面收敛到 `SimConfig + build_phases`，不再显式传递 phases。
+
+### Added
+
+- `VehicleConfig` 新增 `twist_cal` / `Ix` / `It` / `x_cp_cg` 默认值，builder 自动将其传入 `MPMDynamics`。
+
 ## [0.4.0] - 2026-07-05
 
 ### Added

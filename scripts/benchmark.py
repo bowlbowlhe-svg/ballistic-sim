@@ -15,7 +15,6 @@ from typing import Any, Dict
 
 from ballistic_sim import __version__
 from ballistic_sim.monte_carlo import PerturbationConfig, monte_carlo_simulation
-from ballistic_sim.phases.builder import build_phases
 from ballistic_sim.presets import m107_config, rocket_full_config
 from ballistic_sim.simulator import simulate
 
@@ -32,10 +31,7 @@ def _timed(label: str, fn) -> tuple[Any, float]:
 def _benchmark_single_shot() -> Dict[str, Any]:
     """单发 M107 projectile 仿真。"""
     cfg = m107_config()
-    phases = build_phases(cfg)
-    result, elapsed = _timed(
-        "单发 projectile", lambda: simulate(cfg, phases=phases)
-    )
+    result, elapsed = _timed("单发 projectile", lambda: simulate(cfg))
     return {
         "name": "single_projectile",
         "n_samples": 1,
@@ -85,8 +81,7 @@ def _benchmark_sixdof_reentry() -> Dict[str, Any]:
                     "guidance": cfg.guidance.model_copy(update={"kick_deg": 3.0 + i * 0.2}),
                 },
             )
-            phases = build_phases(cfg)
-            results.append(simulate(cfg, phases=phases))
+            results.append(simulate(cfg))
         return results
 
     sample_results, elapsed = _timed("10 样本 CZ-2F 预设链", _run_samples)

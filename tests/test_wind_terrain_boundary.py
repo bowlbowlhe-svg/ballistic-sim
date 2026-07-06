@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 from typing import Any
+import warnings
 
 import numpy as np
 import pytest
@@ -28,7 +29,6 @@ from ballistic_sim.models.aerodynamics import ConstantAeroModel
 from ballistic_sim.models.atmosphere import StandardAtmosphere
 from ballistic_sim.models.terrain import NullTerrainModel, TerrainExtent, TerrainModel
 from ballistic_sim.models.wind import LogarithmicWind, UniformWind
-from ballistic_sim.phases.builder import build_phases
 from ballistic_sim.phases.coasting import CoastingPhase
 from ballistic_sim.phases.events import make_ground_event
 from ballistic_sim.phases.powered import PoweredPhase
@@ -85,8 +85,7 @@ def test_dryden_wind_projectile_simulation_runs() -> None:
         ),
         options=OptionsConfig(integrator="RK45", rtol=1e-6, atol=1e-9, max_step=1.0),
     )
-    phases = build_phases(cfg)
-    result = simulate(cfg, phases=phases)
+    result = simulate(cfg)
     assert result.y.size > 0
     assert result.t[-1] > 0.0
     assert result.stop_reason != "integration_failed@无动力弹道"
@@ -196,7 +195,10 @@ def test_rocket_hilly_terrain_ground_event_depends_on_terrain() -> None:
             terminate_impact=True,
         ),
     )
-    result = simulate(cfg, phases=[ph_boost, ph_coast, ph_terminal])
+    # 注入自定义 HillyTerrainModel，属于 phase 显式传参的合法例外。
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        result = simulate(cfg, phases=[ph_boost, ph_coast, ph_terminal])
     assert result.y.size > 0
     # 应触发落地事件
     landing_events = [ev for ev in result.event_log if "落地" in (ev.get("name") or "")]
@@ -237,7 +239,10 @@ def test_rocket_hilly_terrain_ground_event_depends_on_terrain() -> None:
         lat0=lat0,
         lon0=lon0,
     )
-    result_nt = simulate(cfg, phases=[ph_boost_nt, ph_coast_nt, ph_terminal_nt])
+    # 注入 NullTerrainModel 做对比，属于 phase 显式传参的合法例外。
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        result_nt = simulate(cfg, phases=[ph_boost_nt, ph_coast_nt, ph_terminal_nt])
     landing_events_nt = [ev for ev in result_nt.event_log if "落地" in (ev.get("name") or "")]
     assert landing_events_nt, f"未触发落地事件 (null terrain): {result_nt.event_log}"
     r_end_nt = result_nt.y[-1, 0:3]

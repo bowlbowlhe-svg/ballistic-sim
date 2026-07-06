@@ -15,7 +15,6 @@ import pytest
 
 from ballistic_sim.constants import WGS84_A
 from ballistic_sim.dynamics.common import rv_to_oe
-from ballistic_sim.phases.builder import build_phases
 from ballistic_sim.presets import m107_config, rocket_full_config
 from ballistic_sim.simulator import SimResult, simulate
 
@@ -85,7 +84,7 @@ def test_mvp_m107() -> None:
     """M107 MPM：射程相对误差 <2%、落角绝对误差 <0.5°、飞行时间相对误差 <2%。"""
     golden = _load_golden("atmospheric_m107.json")["scalars"]
     cfg = m107_config()
-    result = simulate(cfg, phases=[])
+    result = simulate(cfg)
     actual = _m107_summary(result)
 
     range_err = _relative_error(golden["range_m"], actual["range_m"])
@@ -110,8 +109,7 @@ def test_mvp_cz2f() -> None:
             "guidance": cfg.guidance.model_copy(update={"t_pitchover": 10.0, "t_kick_end": 25.0})
         },
     )
-    phases = build_phases(cfg)
-    result = simulate(cfg, phases=phases)
+    result = simulate(cfg)
     actual = _cz2f_summary(result)
 
     # SECO 后应形成正高度椭圆轨道

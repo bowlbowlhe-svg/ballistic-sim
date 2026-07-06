@@ -333,9 +333,7 @@ def _apply_common_overrides(cfg: SimConfig, args: argparse.Namespace) -> SimConf
     return cfg
 
 
-def _build_config_and_phases(args: argparse.Namespace) -> tuple[SimConfig, list]:
-    from ballistic_sim.phases.builder import build_phases
-
+def _build_config(args: argparse.Namespace) -> SimConfig:
     if args.config is not None:
         cfg = _load_config_file(args.config)
         # CLI 显式 --mission 优先级高于配置文件
@@ -354,8 +352,7 @@ def _build_config_and_phases(args: argparse.Namespace) -> tuple[SimConfig, list]
     else:
         raise ValueError("未提供 --mission 或 --config")
     cfg = _apply_common_overrides(cfg, args)
-    phases = build_phases(cfg)
-    return cfg, phases
+    return cfg
 
 
 def _compute_summary(cfg: SimConfig, result: SimResult) -> Dict[str, Any]:
@@ -564,7 +561,7 @@ def main() -> None:
     if args.mission is None and args.config is None:
         raise SystemExit("错误: --mission 是必需参数（--gui/--serve/--config 除外）")
 
-    cfg, phases = _build_config_and_phases(args)
+    cfg = _build_config(args)
 
     issues = validate_config(cfg)
     errors = [i for i in issues if i.severity == "ERROR"]
@@ -616,7 +613,7 @@ def main() -> None:
         print(f"Output  : {out_dir}")
         return
 
-    result = simulate(cfg, phases=phases)
+    result = simulate(cfg)
     attach_launch_lla(result, cfg.launch.lat_deg, cfg.launch.lon_deg, cfg.launch.alt_m)
 
     summary = _compute_summary(cfg, result)

@@ -13,7 +13,6 @@ import numpy as np
 
 from ballistic_sim.dynamics.common import rv_to_oe
 from ballistic_sim.frames import ecef_to_geodetic, eci_to_ecef
-from ballistic_sim.phases.builder import build_phases
 from ballistic_sim.presets import m107_config, rocket_full_config
 from ballistic_sim.simulator import SimResult, simulate
 
@@ -35,7 +34,7 @@ def _relative_err(a: float, b: float) -> float:
 def run_m107() -> SimResult:
     """域 I MVP：M107 MPM 落地。"""
     cfg = m107_config()
-    result = simulate(cfg, phases=[])
+    result = simulate(cfg)
     return result
 
 
@@ -63,8 +62,7 @@ def _m107_summary(result: SimResult) -> dict:
 def run_cz2f() -> SimResult:
     """域 II MVP：CZ-2F powered_eci 入轨。"""
     cfg = rocket_full_config("CZ2F")
-    phases = build_phases(cfg)
-    result = simulate(cfg, phases=phases)
+    result = simulate(cfg)
     return result
 
 

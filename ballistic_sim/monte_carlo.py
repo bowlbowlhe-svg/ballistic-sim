@@ -27,7 +27,7 @@ from ballistic_sim.models.aerodynamics import (
     RocketAeroModel,
 )
 from ballistic_sim.models.wind import UniformWind, WindModel
-from ballistic_sim.phases.builder import build_phases
+
 from ballistic_sim.context import _resolve_dynamics_context
 from ballistic_sim.simulator import SimResult, simulate
 
@@ -243,10 +243,9 @@ def _run_single_process(
     """
     try:
         cfg_p = _perturb_cfg(cfg, perturb, seed)
-        phases = build_phases(cfg_p)
         # 显式构建并绑定动力学上下文，启用模型缓存
         cfg_p._dynamics_context = _resolve_dynamics_context(cfg_p)  # type: ignore[attr-defined]
-        result = simulate(cfg_p, phases=phases, reuse_context=True)
+        result = simulate(cfg_p)
         return result
     except Exception as exc:  # noqa: BLE001
         logger.debug("Monte Carlo 样本仿真失败 (seed=%s): %s", seed, exc)

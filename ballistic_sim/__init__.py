@@ -11,7 +11,7 @@ from ballistic_sim.config import (
 from ballistic_sim.phases.builder import build_phases
 from ballistic_sim.simulator import SimResult, simulate
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 __all__ = [
     "__version__",
     "SimConfig",

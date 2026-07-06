@@ -8,7 +8,6 @@ from pathlib import Path
 
 import pytest
 
-from ballistic_sim.phases.builder import build_phases
 from ballistic_sim.presets import m107_config, rocket_full_config
 from ballistic_sim.simulator import SimResult, simulate
 
@@ -43,7 +42,7 @@ def test_plot_trajectory_3d_missing_plotly_raises(monkeypatch) -> None:
     _block_plotly_import(monkeypatch)
     from ballistic_sim.viz import interactive3d
 
-    result = simulate(m107_config(), phases=[])
+    result = simulate(m107_config())
     with pytest.raises(ImportError, match="pip install ballistic_sim\\[viz3d\\]"):
         interactive3d.plot_trajectory_3d(result)
 
@@ -68,7 +67,7 @@ from ballistic_sim.viz.interactive3d import (  # noqa: E402
 def _rocket_result() -> SimResult:
     """返回一条 CZ-2F 火箭示例轨迹。"""
     cfg = rocket_full_config("CZ2F")
-    return simulate(cfg, phases=build_phases(cfg))
+    return simulate(cfg)
 
 
 def test_plot_trajectory_3d_returns_figure_for_eci() -> None:
@@ -83,7 +82,7 @@ def test_plot_trajectory_3d_returns_figure_for_enu() -> None:
     """ENU 结果也应返回 plotly Figure。"""
     from ballistic_sim.viz import attach_launch_lla
 
-    result = simulate(m107_config(), phases=[])
+    result = simulate(m107_config())
     attach_launch_lla(result, 0.0, 0.0, 0.0)
     fig = plot_trajectory_3d(result)
     assert isinstance(fig, plotly.graph_objects.Figure)

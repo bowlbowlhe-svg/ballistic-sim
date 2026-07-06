@@ -6,7 +6,6 @@ import numpy as np
 import pytest
 
 from ballistic_sim.constants import RE_EARTH_MEAN
-from ballistic_sim.phases.builder import build_phases
 from ballistic_sim.presets import m107_config, rocket_full_config
 from ballistic_sim.simulator import SimResult, simulate
 from ballistic_sim.viz import attach_launch_lla
@@ -45,7 +44,7 @@ def test_coastlines_non_empty() -> None:
 
 def test_result_to_ecef_enu() -> None:
     """ENU 结果可正确转换为 ECEF 坐标与高度。"""
-    result = simulate(m107_config(), phases=[])
+    result = simulate(m107_config())
     attach_launch_lla(result, 30.0, 120.0, 0.0)
     x, y, z, alt = result_to_ecef(result)
     assert len(x) == len(result.t)
@@ -56,7 +55,7 @@ def test_result_to_ecef_enu() -> None:
 def test_result_to_ecef_eci() -> None:
     """ECI 结果可正确转换为 ECEF 坐标与高度。"""
     cfg = rocket_full_config("CZ2F")
-    result = simulate(cfg, phases=build_phases(cfg))
+    result = simulate(cfg)
     x, y, z, alt = result_to_ecef(result)
     assert len(x) == len(result.t)
     assert np.all(np.isfinite(x))

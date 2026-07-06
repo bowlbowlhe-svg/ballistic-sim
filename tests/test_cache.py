@@ -134,11 +134,11 @@ def test_cached_and_uncached_simulation_results_equal() -> None:
 
     cfg_cached = base_cfg.model_copy(deep=True)
     cfg_cached.options.use_cache = True
-    res_cached = simulate(cfg_cached, phases=[])
+    res_cached = simulate(cfg_cached)
 
     cfg_uncached = base_cfg.model_copy(deep=True)
     cfg_uncached.options.use_cache = False
-    res_uncached = simulate(cfg_uncached, phases=[])
+    res_uncached = simulate(cfg_uncached)
 
     assert res_cached.stop_reason == res_uncached.stop_reason
     assert res_cached.t[-1] == pytest.approx(res_uncached.t[-1], rel=1e-9)

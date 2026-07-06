@@ -4,10 +4,9 @@ from __future__ import annotations
 
 import queue
 import threading
-from typing import Any, Callable, List, Optional
+from typing import Any, Callable, Optional
 
 from ballistic_sim.config import SimConfig
-from ballistic_sim.phases.base import Phase
 from ballistic_sim.simulator import SimResult, simulate
 from ballistic_sim.viz import attach_launch_lla
 
@@ -26,7 +25,6 @@ class SimulationRunner:
     def run(
         self,
         cfg: SimConfig,
-        phases: List[Phase],
         on_done: Optional[Callable[[SimResult], None]] = None,
         on_error: Optional[Callable[[Exception], None]] = None,
     ) -> None:
@@ -36,7 +34,7 @@ class SimulationRunner:
 
         def _target() -> None:
             try:
-                result = simulate(cfg, phases=phases)
+                result = simulate(cfg)
                 attach_launch_lla(result, cfg.launch.lat_deg, cfg.launch.lon_deg, cfg.launch.alt_m)
                 self._queue.put(("ok", result))
                 if on_done is not None:

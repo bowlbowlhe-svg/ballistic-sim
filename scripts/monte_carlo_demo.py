@@ -13,10 +13,9 @@ from typing import Any, Dict, List
 
 import numpy as np
 
-from ballistic_sim.config import apply_overrides
+from ballistic_sim.config import StageConfig, apply_overrides
 from ballistic_sim.constants import WGS84_A
 from ballistic_sim.dynamics.common import rv_to_oe
-from ballistic_sim.phases.builder import build_phases
 from ballistic_sim.presets import m107_config, rocket_full_config
 from ballistic_sim.simulator import simulate
 
@@ -65,7 +64,7 @@ def _m107_run(
             "environment.wind_m_s": [wind_e, wind_n, 0.0],
         },
     )
-    result = simulate(cfg, phases=build_phases(cfg))
+    result = simulate(cfg)
     y = result.y
     idx = -1
     return M107Outcome(
@@ -81,16 +80,21 @@ def _cz2f_run(
     thrust_offset_ratio: float = 0.0,
 ) -> Cz2fOutcome:
     cfg = rocket_full_config("CZ2F", payload_mass_kg=8000.0 + payload_offset_kg)
-    phases = build_phases(cfg)
     if thrust_offset_ratio != 0.0:
-        for ph in phases:
-            stage = getattr(ph.dynamics, "stage", None)
-            if stage is None:
-                continue
+        # 将推力扰动写回 SimConfig，复用 simulate(cfg) 自动构造 phase 链。
+        assert cfg.vehicle.stages is not None, "CZ-2F 预设必须包含多级 stages"
+        new_stages: List[StageConfig] = []
+        for stage in cfg.vehicle.stages:
+            data = stage.model_dump()
             for key in ("thrust_vac", "thrust_sl"):
-                if key in stage:
-                    stage[key] = float(stage[key]) * (1.0 + thrust_offset_ratio)
-    result = simulate(cfg, phases=phases)
+                data[key] = float(data[key]) * (1.0 + thrust_offset_ratio)
+            new_stages.append(StageConfig(**data))
+        cfg = cfg.model_copy(
+            update={
+                "vehicle": cfg.vehicle.model_copy(update={"stages": new_stages}),
+            }
+        )
+    result = simulate(cfg)
     y = result.y
     idx = -1
     r_eci = y[idx, 0:3]

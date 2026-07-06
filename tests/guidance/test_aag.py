@@ -165,7 +165,7 @@ def test_aag_orbit_insertion_velocity() -> None:
         options=OptionsConfig(max_step=2.0, terminate_impact=False),
         environment=EnvironmentConfig(atmosphere="none"),
     )
-    res = simulate(cfg, [])
+    res = simulate(cfg)
     if res.y.size == 0:
         pytest.skip("AAG 仿真未产生有效轨迹")
     y_end = res.y[-1]

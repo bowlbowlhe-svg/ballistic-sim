@@ -15,7 +15,6 @@ from matplotlib.figure import Figure
 
 matplotlib.use("Agg", force=True)
 
-from ballistic_sim.phases.builder import build_phases  # noqa: E402
 from ballistic_sim.presets import m107_config, rocket_full_config  # noqa: E402
 from ballistic_sim.simulator import SimResult, simulate  # noqa: E402
 
@@ -46,13 +45,13 @@ def _resolve_plot_fn(module: Any) -> Callable[..., Figure]:
 
 def _atmospheric_result() -> SimResult:
     """Return a minimal atmospheric SimResult (M107 projectile)."""
-    return simulate(m107_config(), phases=[])
+    return simulate(m107_config())
 
 
 def _exo_result() -> SimResult:
     """Return a minimal exo-atmospheric SimResult (CZ-2F rocket)."""
     cfg = rocket_full_config("CZ2F")
-    return simulate(cfg, phases=build_phases(cfg))
+    return simulate(cfg)
 
 
 _VIZ_CASES: list[tuple[str, Callable[[], SimResult]]] = [

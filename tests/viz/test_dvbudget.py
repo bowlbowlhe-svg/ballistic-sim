@@ -9,7 +9,6 @@ from matplotlib.figure import Figure
 
 matplotlib.use("Agg")
 
-from ballistic_sim.phases.builder import build_phases  # noqa: E402
 from ballistic_sim.presets import m107_config, rocket_full_config  # noqa: E402
 from ballistic_sim.simulator import simulate  # noqa: E402
 from ballistic_sim.viz.dvbudget import plot_dv_budget  # noqa: E402
@@ -18,7 +17,7 @@ from ballistic_sim.viz.dvbudget import plot_dv_budget  # noqa: E402
 def test_dv_budget_figure_for_rocket() -> None:
     """plot_dv_budget 对火箭结果返回非空 Figure。"""
     cfg = rocket_full_config("CZ2F")
-    result = simulate(cfg, phases=build_phases(cfg))
+    result = simulate(cfg)
     fig = plot_dv_budget(result, isp_s=300.0)
     assert isinstance(fig, Figure)
     assert fig.get_axes()
@@ -27,7 +26,7 @@ def test_dv_budget_figure_for_rocket() -> None:
 
 def test_dv_budget_figure_for_projectile() -> None:
     """plot_dv_budget 对弹丸结果返回非空 Figure（质量缺失走退化分支）。"""
-    result = simulate(m107_config(), phases=[])
+    result = simulate(m107_config())
     fig = plot_dv_budget(result, isp_s=300.0)
     assert isinstance(fig, Figure)
     assert fig.get_axes()

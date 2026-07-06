@@ -9,7 +9,6 @@ from ballistic_sim.config import (
     SimConfig,
     VehicleConfig,
 )
-from ballistic_sim.phases.builder import build_phases
 from ballistic_sim.simulator import simulate
 
 
@@ -34,8 +33,7 @@ def test_projectile_simulation_with_hilly_terrain() -> None:
         ),
         options=OptionsConfig(integrator="RK45", rtol=1e-6, atol=1e-9, max_step=1.0),
     )
-    phases = build_phases(cfg)
-    result = simulate(cfg, phases=phases)
+    result = simulate(cfg)
     assert result.y.size > 0
     assert result.t[-1] > 0.0
     assert result.stop_reason != "integration_failed@无动力弹道"
@@ -61,7 +59,6 @@ def test_rocket_simulation_with_null_terrain() -> None:
         ),
         options=OptionsConfig(integrator="RK45", rtol=1e-6, atol=1e-9, max_step=1.0),
     )
-    phases = build_phases(cfg)
-    result = simulate(cfg, phases=phases)
+    result = simulate(cfg)
     assert result.y.size > 0
     assert result.t[-1] >= 0.0

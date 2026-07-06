@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
+import warnings
 
 import numpy as np
 from scipy.integrate import solve_ivp
@@ -28,7 +29,7 @@ class SimResult:
 
 def simulate(
     cfg: SimConfig,
-    phases: List[Phase],
+    phases: Optional[List[Phase]] = None,
     reuse_context: bool = True,
 ) -> SimResult:
     """统一仿真主循环。
@@ -52,8 +53,16 @@ def simulate(
             lines.append(f"  [{issue.severity}] {issue.path}: {issue.message}")
         raise ValueError("\n".join(lines))
 
-    if not phases:
+    if phases is None:
         phases = build_phases(cfg)
+    else:
+        warnings.warn(
+            "显式传入 phases 自 v0.5.0 起已弃用，请改用 simulate(cfg)。",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        if phases == []:
+            phases = build_phases(cfg)
 
     if reuse_context and getattr(cfg, "_dynamics_context", None) is not None:
         dyn_ctx = cfg._dynamics_context  # type: ignore[attr-defined]

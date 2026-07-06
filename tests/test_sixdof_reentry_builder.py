@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import warnings
+
 import numpy as np
 import pytest
 
@@ -119,7 +121,10 @@ def test_simulate_projectile_with_sixdof_phase() -> None:
             dynamics=dyn,
         ),
     ]
-    result = simulate(cfg, phases=phases)
+    # 直接构造 SixDOFDynamics/Phase 验证再入 builder 集成，属于 phase 显式传参的合法例外。
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        result = simulate(cfg, phases=phases)
     assert result.stop_reason == "completed"
     assert result.t.size > 0
     landing_events = [ev for ev in result.event_log if "落地" in ev.get("name", "")]

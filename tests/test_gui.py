@@ -134,9 +134,9 @@ def test_builder_yaml_roundtrip(tmp_path: Path) -> None:
 
 def test_runner_executes_simulation() -> None:
     """SimulationRunner 应在后台线程运行仿真并返回结果。"""
-    cfg, phases = build_config_and_phases("projectile", "M107")
+    cfg, _ = build_config_and_phases("projectile", "M107")
     runner = SimulationRunner()
-    runner.run(cfg, phases)
+    runner.run(cfg)
     runner.join(timeout=30.0)
     assert not runner.is_alive()
     kind, payload = runner.result_queue.get_nowait()

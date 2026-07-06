@@ -62,30 +62,12 @@ def _run_case(
         },
     }
     stats["diff_pct"] = {
-        "range_mean": _rel_diff(
-            stats["process"]["range_mean"], stats["batch"]["range_mean"]
-        )
-        * 100,
-        "range_std": _rel_diff(
-            stats["process"]["range_std"], stats["batch"]["range_std"]
-        )
-        * 100,
-        "cross_mean": _rel_diff(
-            stats["process"]["cross_mean"], stats["batch"]["cross_mean"]
-        )
-        * 100,
-        "cross_std": _rel_diff(
-            stats["process"]["cross_std"], stats["batch"]["cross_std"]
-        )
-        * 100,
-        "tof_mean": _rel_diff(
-            stats["process"]["tof_mean"], stats["batch"]["tof_mean"]
-        )
-        * 100,
-        "tof_std": _rel_diff(
-            stats["process"]["tof_std"], stats["batch"]["tof_std"]
-        )
-        * 100,
+        "range_mean": _rel_diff(stats["process"]["range_mean"], stats["batch"]["range_mean"]) * 100,
+        "range_std": _rel_diff(stats["process"]["range_std"], stats["batch"]["range_std"]) * 100,
+        "cross_mean": _rel_diff(stats["process"]["cross_mean"], stats["batch"]["cross_mean"]) * 100,
+        "cross_std": _rel_diff(stats["process"]["cross_std"], stats["batch"]["cross_std"]) * 100,
+        "tof_mean": _rel_diff(stats["process"]["tof_mean"], stats["batch"]["tof_mean"]) * 100,
+        "tof_std": _rel_diff(stats["process"]["tof_std"], stats["batch"]["tof_std"]) * 100,
     }
     return stats
 
@@ -113,8 +95,7 @@ def _print_case(stats: dict) -> None:
         f"{stats['process']['tof_std']:.2f} s"
     )
     print(
-        f"batch   tof:   {stats['batch']['tof_mean']:.2f} ± "
-        f"{stats['batch']['tof_std']:.2f} s"
+        f"batch   tof:   {stats['batch']['tof_mean']:.2f} ± " f"{stats['batch']['tof_std']:.2f} s"
     )
     print("差异 %:")
     for key, val in stats["diff_pct"].items():

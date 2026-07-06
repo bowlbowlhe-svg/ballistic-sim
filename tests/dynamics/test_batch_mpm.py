@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import warnings
+
 import numpy as np
 import pytest
 
@@ -82,7 +84,10 @@ def _single_mpm_result(cfg: SimConfig, dt: float = 0.05) -> tuple[float, float, 
             dynamics=dyn,
         ),
     ]
-    result = simulate(cfg, phases=phases)
+    # 本测试直接构造 MPMDynamics/Phase 以验证批量与单发一致性，属于 phase 显式传参的合法例外。
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        result = simulate(cfg, phases=phases)
     e, n, u = result.y[-1, 0], result.y[-1, 1], result.y[-1, 2]
     assert u <= 1e-6, f"MPM 未落地，末高度 {u}"
     return float(np.hypot(e, n)), float(e), float(result.t[-1])

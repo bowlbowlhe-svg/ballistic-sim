@@ -43,7 +43,7 @@ def test_app_3d_tab_shows_hint_without_result(tk_root) -> None:
 def test_app_3d_tab_generates_html(tk_root) -> None:
     """有仿真结果时应生成 HTML 或给出依赖缺失提示。"""
     app = BallisticGuiApp(tk_root, mission="projectile")
-    result = simulate(m107_config(), phases=[])
+    result = simulate(m107_config())
     app._last_result = result
     app._on_generate_3d()
     text = app._3d_status_label.cget("text")

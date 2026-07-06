@@ -15,7 +15,6 @@ from ballistic_sim.config import (
     VehicleConfig,
     validate_config,
 )
-from ballistic_sim.phases.builder import build_phases
 from ballistic_sim.simulator import simulate
 
 pytest.importorskip("fastapi", reason="fastapi not installed")
@@ -37,9 +36,8 @@ def test_simulate_raises_valueerror_for_low_thrust():
         vehicle=VehicleConfig(mass_kg=1000.0, thrust_N=5000.0, burn_time_s=60.0),
         launch=LaunchConfig(),
     )
-    phases = build_phases(cfg)
     with pytest.raises(ValueError, match="T/W"):
-        simulate(cfg, phases=phases)
+        simulate(cfg)
 
 
 def test_validate_config_error_for_missing_proportional_target():
@@ -63,7 +61,7 @@ def test_simulate_runs_with_warnings_only():
     )
     issues = validate_config(cfg)
     assert not any(i.severity == "ERROR" for i in issues)
-    result = simulate(cfg, phases=build_phases(cfg))
+    result = simulate(cfg)
     assert result.stop_reason != ""
 
 

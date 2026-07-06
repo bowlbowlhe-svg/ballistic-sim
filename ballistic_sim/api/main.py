@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 
@@ -21,7 +21,7 @@ from ballistic_sim.api.models import (
 )
 from ballistic_sim.config import SimConfig, ValidationIssue, apply_overrides, validate_config
 from ballistic_sim.monte_carlo import PerturbationConfig, monte_carlo_simulation
-from ballistic_sim.phases.builder import build_phases
+
 from ballistic_sim.presets import (
     list_missiles,
     m107_config,
@@ -99,11 +99,11 @@ def _merge_request(cfg: SimConfig, request: SimulateRequest) -> SimConfig:
     return cfg
 
 
-def _build_config_and_phases(
+def _build_config(
     mission: str,
     request: SimulateRequest,
-) -> Tuple[SimConfig, List[Any]]:
-    """Build a SimConfig and phase list for the requested mission."""
+) -> SimConfig:
+    """Build a SimConfig for the requested mission."""
     if mission == "projectile":
         preset = request.preset or "M107"
         if preset == "M107":
@@ -134,8 +134,7 @@ def _build_config_and_phases(
     else:
         raise ValueError(f"未支持的任务类型: {mission}")
     cfg = _merge_request(cfg, request)
-    phases = build_phases(cfg)
-    return cfg, phases
+    return cfg
 
 
 def _compute_summary(cfg: SimConfig, result: SimResult) -> Dict[str, Any]:
@@ -193,9 +192,9 @@ def _run_simulation(
     request: SimulateRequest,
 ) -> SimulateResponse:
     """Run a single simulation and package the response."""
-    cfg, phases = _build_config_and_phases(mission, request)
+    cfg = _build_config(mission, request)
     _check_config_or_raise(cfg)
-    result = simulate(cfg, phases=phases)
+    result = simulate(cfg)
     summary = _compute_summary(cfg, result)
     trajectory: Optional[Dict[str, List[float]]] = None
     if request.include_trajectory:
@@ -224,7 +223,7 @@ def _run_monte_carlo(request: MonteCarloRequest) -> MonteCarloResponse:
         preset=request.preset,
         include_trajectory=False,
     )
-    cfg, _ = _build_config_and_phases(request.mission, sim_request)
+    cfg = _build_config(request.mission, sim_request)
     _check_config_or_raise(cfg)
     if request.backend in ("batch", "gpu"):
         cfg = apply_overrides(
@@ -267,7 +266,7 @@ def _solve_fire_control(request: FireControlRequest) -> FireControlResponse:
         preset=request.preset,
         include_trajectory=False,
     )
-    cfg, _ = _build_config_and_phases(request.mission, sim_request)
+    cfg = _build_config(request.mission, sim_request)
     _check_config_or_raise(cfg)
     try:
         sol = solve_firing_solution_latlon(
@@ -299,7 +298,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="Ballistic Sim API",
         description="Web API for ballistic flight simulation.",
-        version="0.4.0",
+        version="0.5.0",
     )
 
     app.add_middleware(
@@ -349,12 +348,12 @@ def create_app() -> FastAPI:
         """接收仿真参数并返回 3D 轨迹 JSON 点序列或 HTML 字符串。"""
         sim_request = _sim_request_from_trajectory_request(request)
         try:
-            cfg, phases = _build_config_and_phases(request.mission, sim_request)
+            cfg = _build_config(request.mission, sim_request)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
         _check_config_or_raise(cfg)
-        result = simulate(cfg, phases=phases)
+        result = simulate(cfg)
 
         if request.format == "html":
             try:

@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import warnings
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
@@ -128,7 +129,12 @@ def _simulate_shaped(
         if dyn is not None and hasattr(dyn, "modes") and isinstance(dyn.modes, dict):
             dyn.modes["drag"] = bool(use_drag)
 
-    return simulate(cfg, phases=phases)
+    # 必须显式传入 phases：本函数在 build_phases 后对 phase 级制导参数与动力学模式
+    # 做了 in-place 调整（drag 开关等），无法仅通过 SimConfig 表达。
+    # 作为内部调用方，临时抑制弃用警告。
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        return simulate(cfg, phases=phases)
 
 
 def _range_for_kick(

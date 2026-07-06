@@ -147,13 +147,12 @@ def demo(output_path: Optional[str | Path] = "trajectory3d_demo.html") -> Any:
     默认使用 CZ-2F 火箭预设生成一条飞出大气层的轨迹。
     """
     _require_plotly()
-    from ballistic_sim.phases.builder import build_phases
     from ballistic_sim.presets import rocket_full_config
     from ballistic_sim.simulator import simulate
     from ballistic_sim.viz import attach_launch_lla
 
     cfg = rocket_full_config("CZ2F")
-    result = simulate(cfg, phases=build_phases(cfg))
+    result = simulate(cfg)
     attach_launch_lla(result, cfg.launch.lat_deg, cfg.launch.lon_deg, cfg.launch.alt_m)
     fig = plot_trajectory_3d(result, output_path=output_path)
     return fig

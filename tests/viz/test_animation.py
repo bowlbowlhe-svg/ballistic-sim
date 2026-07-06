@@ -17,7 +17,7 @@ from ballistic_sim.simulator import SimResult, simulate  # noqa: E402
 
 def _atmospheric_result() -> SimResult:
     """Return a minimal atmospheric SimResult (M107 projectile)."""
-    return simulate(m107_config(), phases=[])
+    return simulate(m107_config())
 
 
 def test_animate_trajectory_gif(tmp_path: Path) -> None:

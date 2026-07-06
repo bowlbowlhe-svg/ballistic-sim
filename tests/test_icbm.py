@@ -8,6 +8,8 @@
 
 from __future__ import annotations
 
+import warnings
+
 import numpy as np
 import pytest
 
@@ -168,7 +170,10 @@ def _placeholder_icbm_phases():
 def test_icbm_end_to_end() -> None:
     """占位 ICBM：主动段→中段→再入段端到端检查。"""
     cfg, phases = _placeholder_icbm_phases()
-    result = simulate(cfg, phases=phases)
+    # 占位 phases 为手工构造的验证链，属于 phase 显式传参的合法例外。
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        result = simulate(cfg, phases=phases)
 
     assert result.stop_reason == "completed"
     assert result.y.size > 0
