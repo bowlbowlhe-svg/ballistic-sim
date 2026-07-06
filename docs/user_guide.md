@@ -117,12 +117,13 @@ ballistic-sim --mission suborbital \
 仿真结束后，CLI 会输出关键指标（射程、落点、飞行时间）。使用 Python API 可进一步绘图：
 
 ```python
-from ballistic_sim.presets import m107_config, m107_phases
+from ballistic_sim.phases.builder import build_phases
+from ballistic_sim.presets import m107_config
 from ballistic_sim.simulator import simulate
 from ballistic_sim.viz.profile import plot_altitude_profile
 
 cfg = m107_config()
-phases = m107_phases()
+phases = build_phases(cfg)
 result = simulate(cfg, phases=phases)
 plot_altitude_profile(result, save_path="out/altitude.png")
 ```

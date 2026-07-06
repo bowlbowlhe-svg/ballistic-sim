@@ -12,9 +12,10 @@ import numpy as np
 from scipy.optimize import brentq, least_squares, minimize_scalar
 
 from ballistic_sim.config import apply_overrides
+from ballistic_sim.phases.builder import build_phases
 from ballistic_sim.frames import haversine_distance, initial_bearing
 from ballistic_sim.guidance.firecontrol import solve_firing_solution_latlon
-from ballistic_sim.presets.missiles import missile_config, missile_phases
+from ballistic_sim.presets.missiles import missile_config, missile_full_config
 from ballistic_sim.simulator import simulate
 
 __all__ = [
@@ -100,7 +101,10 @@ def _simulate_shaped(
     通过覆盖导弹预设的 ``kick_deg``（与可选发射方位 ``az_deg``）实现弹道整形。
     ``gamma_bo_target_deg`` 保留给后续上面级/能量整形扩展，当前版本暂不生效。
     """
-    cfg = missile_config(name)
+    cfg = missile_full_config(name)
+    # targeting 需要 mission="missile"；missile_full_config 对 ICBM 可能返回 "icbm"
+    if cfg.mission != "missile":
+        cfg = cfg.model_copy(update={"mission": "missile"})
     ov = {"guidance.kick_deg": float(kick_deg)}
     if az_deg is not None:
         ov["launch.azimuth_deg"] = float(az_deg)
@@ -108,14 +112,11 @@ def _simulate_shaped(
         ov.update(overrides)
     cfg = apply_overrides(cfg, ov)
 
-    phases = missile_phases(name)
+    phases = build_phases(cfg)
     for ph in phases:
+        # 保留扩展字段，但不启用（避免破坏现有开环制导时序）
         g = getattr(ph, "guidance", None)
         if isinstance(g, dict):
-            g["kick_deg"] = float(kick_deg)
-            if az_deg is not None:
-                g["azimuth_deg"] = float(az_deg)
-            # 保留扩展字段，但不启用（避免破坏现有开环制导时序）
             if gamma_bo_target_deg is not None:
                 g.setdefault("_gamma_bo_target_deg", float(gamma_bo_target_deg))
                 start = float(t_shape_start) if t_shape_start is not None else 0.0

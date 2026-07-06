@@ -13,7 +13,8 @@ import numpy as np
 
 from ballistic_sim.dynamics.common import rv_to_oe
 from ballistic_sim.frames import ecef_to_geodetic, eci_to_ecef
-from ballistic_sim.presets import cz2f_config, cz2f_phases, m107_config
+from ballistic_sim.phases.builder import build_phases
+from ballistic_sim.presets import m107_config, rocket_full_config
 from ballistic_sim.simulator import SimResult, simulate
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -61,8 +62,8 @@ def _m107_summary(result: SimResult) -> dict:
 
 def run_cz2f() -> SimResult:
     """域 II MVP：CZ-2F powered_eci 入轨。"""
-    cfg = cz2f_config()
-    phases = cz2f_phases(cfg)
+    cfg = rocket_full_config("CZ2F")
+    phases = build_phases(cfg)
     result = simulate(cfg, phases=phases)
     return result
 

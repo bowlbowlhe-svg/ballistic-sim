@@ -266,7 +266,7 @@ def test_build_phases_for_icbm_three_stage_full_chain() -> None:
     assert isinstance(phases[5], TerminalPhase)
 
 
-def test_build_phases_for_rocket_full_chain_has_coast_and_terminal() -> None:
+def test_build_phases_for_rocket_full_config_has_coast_and_terminal() -> None:
     """builder 应为火箭完整链生成多级动力 -> 滑行 -> 轨道插入。"""
     from ballistic_sim.presets.rockets import rocket_full_config
 

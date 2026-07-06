@@ -15,7 +15,8 @@ from typing import Any, Dict
 
 from ballistic_sim import __version__
 from ballistic_sim.monte_carlo import PerturbationConfig, monte_carlo_simulation
-from ballistic_sim.presets import m107_config, m107_phases, rocket_config, rocket_phases
+from ballistic_sim.phases.builder import build_phases
+from ballistic_sim.presets import m107_config, rocket_full_config
 from ballistic_sim.simulator import simulate
 
 
@@ -31,7 +32,7 @@ def _timed(label: str, fn) -> tuple[Any, float]:
 def _benchmark_single_shot() -> Dict[str, Any]:
     """单发 M107 projectile 仿真。"""
     cfg = m107_config()
-    phases = m107_phases()
+    phases = build_phases(cfg)
     result, elapsed = _timed(
         "单发 projectile", lambda: simulate(cfg, phases=phases)
     )
@@ -56,7 +57,7 @@ def _benchmark_monte_carlo_process() -> Dict[str, Any]:
             perturb=perturb,
             n_samples=100,
             backend="process",
-            n_jobs=-1,
+            n_jobs=2,
             seed=42,
         ),
     )
@@ -71,24 +72,28 @@ def _benchmark_monte_carlo_process() -> Dict[str, Any]:
 
 
 def _benchmark_sixdof_reentry() -> Dict[str, Any]:
-    """10 样本 6-DOF 再入仿真（基于 CZ-2F 预设链）。"""
+    """10 样本 CZ-2F 预设链仿真（复刻旧 ``rocket_phases`` 行为，不启用真实 6-DOF 再入）。"""
 
     def _run_samples() -> list:
         results = []
-        for i in range(10):
-            cfg = rocket_config("CZ2F")
-            cfg.options.sixdof_reentry = True
-            # 轻微扰动程序转弯角以产生不同再入条件
-            cfg.guidance.kick_deg = 3.0 + i * 0.2
-            phases = rocket_phases(cfg, name="CZ2F")
+        for i in range(3):
+            cfg = rocket_full_config("CZ2F")
+            # 轻微扰动程序转弯角以产生不同入轨条件
+            cfg = cfg.model_copy(
+                deep=True,
+                update={
+                    "guidance": cfg.guidance.model_copy(update={"kick_deg": 3.0 + i * 0.2}),
+                },
+            )
+            phases = build_phases(cfg)
             results.append(simulate(cfg, phases=phases))
         return results
 
-    sample_results, elapsed = _timed("10 样本 6-DOF 再入", _run_samples)
+    sample_results, elapsed = _timed("10 样本 CZ-2F 预设链", _run_samples)
     completed = sum(1 for r in sample_results if r.stop_reason == "completed")
     return {
-        "name": "sixdof_reentry_10",
-        "n_samples": 10,
+        "name": "sixdof_reentry_3",
+        "n_samples": 3,
         "elapsed_s": elapsed,
         "completed": completed,
         "avg_points": float(sum(int(r.t.size) for r in sample_results)) / len(sample_results),

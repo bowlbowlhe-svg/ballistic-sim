@@ -3,14 +3,13 @@
 from __future__ import annotations
 
 from ballistic_sim.config import SimConfig
+from ballistic_sim.phases.builder import build_phases
 from ballistic_sim.presets import (
     missile_config,
-    missile_phases,
+    missile_full_config,
     m107_config,
-    m107_phases,
-    projectile_phases,
     rocket_config,
-    rocket_phases,
+    rocket_full_config,
 )
 
 
@@ -21,17 +20,17 @@ def test_m107_config_returns_simconfig() -> None:
     assert cfg.mission == "projectile"
 
 
-def test_m107_phases_non_empty() -> None:
-    """M107 phase list contains the expected phases."""
-    phases = m107_phases()
+def test_m107_build_phases_non_empty() -> None:
+    """build_phases(m107_config()) returns the expected phases."""
+    phases = build_phases(m107_config())
     assert len(phases) >= 2
     assert phases[0].name == "无动力弹道"
 
 
-def test_projectile_phases_for_m107() -> None:
-    """projectile_phases('M107') returns same shape as m107_phases."""
-    phases = projectile_phases("M107")
-    assert len(phases) == len(m107_phases())
+def test_m107_build_phases_non_trivial() -> None:
+    """build_phases(m107_config()) returns a non-trivial phase list."""
+    phases = build_phases(m107_config())
+    assert len(phases) >= 2
 
 
 def test_missile_config_returns_simconfig() -> None:
@@ -41,9 +40,10 @@ def test_missile_config_returns_simconfig() -> None:
     assert cfg.mission == "missile"
 
 
-def test_missile_phases_non_empty() -> None:
-    """Missile phase list is non-empty."""
-    phases = missile_phases("SRBM_600")
+def test_missile_full_config_phases_non_empty() -> None:
+    """missile_full_config + build_phases returns a non-empty phase list."""
+    cfg = missile_full_config("SRBM_600")
+    phases = build_phases(cfg)
     assert len(phases) >= 1
 
 
@@ -54,8 +54,8 @@ def test_rocket_config_returns_simconfig() -> None:
     assert cfg.mission == "rocket"
 
 
-def test_rocket_phases_non_empty() -> None:
-    """Rocket phase list contains multiple powered/coast phases."""
-    cfg = rocket_config("CZ2F")
-    phases = rocket_phases(cfg)
+def test_rocket_full_config_phases_non_empty() -> None:
+    """rocket_full_config + build_phases returns a multistage phase list."""
+    cfg = rocket_full_config("CZ2F")
+    phases = build_phases(cfg)
     assert len(phases) >= 3

@@ -5,9 +5,9 @@ from __future__ import annotations
 import pytest
 
 from ballistic_sim.dynamics.common import rv_to_oe
+from ballistic_sim.phases.builder import build_phases
 from ballistic_sim.presets.rockets import (
     list_rockets,
-    rocket_full_chain,
     rocket_full_config,
 )
 from ballistic_sim.simulator import simulate
@@ -19,7 +19,7 @@ def _orbital_elements(res) -> dict:
     return rv_to_oe(y[0:3], y[3:6])
 
 
-def test_rocket_full_chain_lists_available_presets() -> None:
+def test_rocket_full_config_lists_available_presets() -> None:
     """list_rockets 应包含常用火箭预设。"""
     names = list_rockets()
     assert "CZ2F" in names
@@ -42,7 +42,7 @@ def test_generic3_3stage_full_chain_smoke() -> None:
     """GENERIC3_3STAGE 完整链：4 级分离 + 滑行 + 远地点 + 入轨。"""
     name = "GENERIC3_3STAGE"
     cfg = rocket_full_config(name)
-    phases = rocket_full_chain(name)
+    phases = build_phases(cfg)
     names = [ph.name for ph in phases]
     assert any("P1" in n for n in names)
     assert any("P4" in n for n in names)
@@ -73,7 +73,7 @@ def test_cz3b_orbital_insertion_smoke() -> None:
     """CZ3B 完整链：助推/芯一/芯二/三级分离 + 轨道插入 sanity。"""
     name = "CZ3B"
     cfg = rocket_full_config(name)
-    phases = rocket_full_chain(name)
+    phases = build_phases(cfg)
     names = [ph.name for ph in phases]
     assert any("P1" in n for n in names)
     assert any("P4" in n for n in names)

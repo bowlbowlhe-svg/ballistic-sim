@@ -16,7 +16,8 @@ import numpy as np
 from ballistic_sim.config import apply_overrides
 from ballistic_sim.constants import WGS84_A
 from ballistic_sim.dynamics.common import rv_to_oe
-from ballistic_sim.presets import cz2f_config, cz2f_phases, m107_config, m107_phases
+from ballistic_sim.phases.builder import build_phases
+from ballistic_sim.presets import m107_config, rocket_full_config
 from ballistic_sim.simulator import simulate
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -64,7 +65,7 @@ def _m107_run(
             "environment.wind_m_s": [wind_e, wind_n, 0.0],
         },
     )
-    result = simulate(cfg, phases=m107_phases())
+    result = simulate(cfg, phases=build_phases(cfg))
     y = result.y
     idx = -1
     return M107Outcome(
@@ -79,12 +80,8 @@ def _cz2f_run(
     payload_offset_kg: float = 0.0,
     thrust_offset_ratio: float = 0.0,
 ) -> Cz2fOutcome:
-    cfg = cz2f_config()
-    phases = cz2f_phases(cfg)
-    if payload_offset_kg != 0.0:
-        # 通过改变 payload 质量间接扰动各级干/湿质量
-        cfg = cz2f_config(payload_mass_kg=8000.0 + payload_offset_kg)
-        phases = cz2f_phases(cfg)
+    cfg = rocket_full_config("CZ2F", payload_mass_kg=8000.0 + payload_offset_kg)
+    phases = build_phases(cfg)
     if thrust_offset_ratio != 0.0:
         for ph in phases:
             stage = getattr(ph.dynamics, "stage", None)

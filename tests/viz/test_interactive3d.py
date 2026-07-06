@@ -8,7 +8,8 @@ from pathlib import Path
 
 import pytest
 
-from ballistic_sim.presets import cz2f_config, cz2f_phases, m107_config
+from ballistic_sim.phases.builder import build_phases
+from ballistic_sim.presets import m107_config, rocket_full_config
 from ballistic_sim.simulator import SimResult, simulate
 
 
@@ -66,8 +67,8 @@ from ballistic_sim.viz.interactive3d import (  # noqa: E402
 
 def _rocket_result() -> SimResult:
     """返回一条 CZ-2F 火箭示例轨迹。"""
-    cfg = cz2f_config()
-    return simulate(cfg, phases=cz2f_phases(cfg))
+    cfg = rocket_full_config("CZ2F")
+    return simulate(cfg, phases=build_phases(cfg))
 
 
 def test_plot_trajectory_3d_returns_figure_for_eci() -> None:
@@ -136,8 +137,15 @@ def test_plot_trajectory_3d_no_earth_reduces_traces() -> None:
 
 
 def test_main_without_args_prints_help() -> None:
-    """_main 无参数时应打印帮助信息并退出。"""
+    """_main 遇到无法识别的参数时应打印帮助信息并退出。"""
+    import sys
+
     from ballistic_sim.viz.interactive3d import _main
 
     with pytest.raises(SystemExit):
-        _main()
+        old_argv = sys.argv
+        try:
+            sys.argv = ["interactive3d", "--unexpected-arg"]
+            _main()
+        finally:
+            sys.argv = old_argv

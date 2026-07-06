@@ -32,10 +32,11 @@ def test_dashboard_writes_file(tmp_path: Path) -> None:
 
 def test_dashboard_with_rocket_result() -> None:
     """ECI 火箭结果也应正常生成 2×2 面板。"""
-    from ballistic_sim.presets import cz2f_config, cz2f_phases
+    from ballistic_sim.phases.builder import build_phases
+    from ballistic_sim.presets import rocket_full_config
 
-    cfg = cz2f_config()
-    result = simulate(cfg, phases=cz2f_phases(cfg))
+    cfg = rocket_full_config("CZ2F")
+    result = simulate(cfg, phases=build_phases(cfg))
     fig = plot_dashboard(result)
     assert isinstance(fig, Figure)
     assert len(fig.axes) == 4

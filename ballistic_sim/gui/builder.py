@@ -21,13 +21,9 @@ from ballistic_sim.presets import (
     list_missiles,
     list_projectiles,
     list_rockets,
-    missile_config,
-    missile_phases,
     m107_config,
-    m107_phases,
-    projectile_phases,
-    rocket_config,
-    rocket_phases,
+    missile_full_config,
+    rocket_full_config,
 )
 
 MISSIONS = ["projectile", "missile", "rocket", "icbm", "suborbital"]
@@ -82,19 +78,19 @@ def build_config_and_phases(
     if mission == "projectile":
         name = preset or "M107"
         cfg = m107_config() if name == "M107" else _projectile_config(name)
-        phases = m107_phases() if name == "M107" else projectile_phases(name)
+        phases = build_phases(cfg)
         return cfg, phases
 
     if mission == "missile":
         name = preset or default_preset(mission) or list_missiles()[0]
-        cfg = missile_config(name)
-        phases = missile_phases(name)
+        cfg = missile_full_config(name)
+        phases = build_phases(cfg)
         return cfg, phases
 
     if mission == "rocket":
         name = preset or "CZ2F"
-        cfg = rocket_config(name)
-        phases = rocket_phases(cfg, name=name)
+        cfg = rocket_full_config(name)
+        phases = build_phases(cfg)
         return cfg, phases
 
     # icbm / suborbital 使用通用配置 + builder

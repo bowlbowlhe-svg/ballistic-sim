@@ -5,9 +5,9 @@ from __future__ import annotations
 import pytest
 
 from ballistic_sim.frames import eci_to_ecef, ecef_to_geodetic, haversine_distance
+from ballistic_sim.phases.builder import build_phases
 from ballistic_sim.presets.missiles import (
     list_missiles,
-    missile_full_chain,
     missile_full_config,
 )
 from ballistic_sim.simulator import simulate
@@ -17,7 +17,7 @@ from ballistic_sim.simulator import simulate
 def test_icbm_8000_full_chain_smoke() -> None:
     """ICBM_8000 完整链可完成 3 级上升 -> 中段 -> 再入 -> 落地。"""
     cfg = missile_full_config("ICBM_8000")
-    phases = missile_full_chain("ICBM_8000")
+    phases = build_phases(cfg)
     names = [ph.name for ph in phases]
     assert names[:3] == ["S1 动力", "S2 动力", "S3 动力"]
     assert "滑行" in names
@@ -46,7 +46,7 @@ def test_icbm_8000_full_chain_smoke() -> None:
     assert 7e6 < downrange < 10e6
 
 
-def test_missile_full_chain_lists_available_presets() -> None:
+def test_missile_full_config_lists_available_presets() -> None:
     """list_missiles 应包含 ICBM_8000。"""
     names = list_missiles()
     assert "ICBM_8000" in names

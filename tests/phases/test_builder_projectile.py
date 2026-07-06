@@ -13,7 +13,7 @@ from ballistic_sim.presets.projectiles import m107_config
 from ballistic_sim.simulator import simulate
 
 
-def test_m107_phases_mpm_dynamics_matches_preset() -> None:
+def test_m107_build_phases_mpm_dynamics_matches_preset() -> None:
     """build_phases(m107_config()) 应把 YAML 中的 twist_cal/Ix/It 传入 MPMDynamics。"""
     cfg = m107_config()
     phases = build_phases(cfg)

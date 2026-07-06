@@ -9,15 +9,16 @@ from matplotlib.figure import Figure
 
 matplotlib.use("Agg")
 
-from ballistic_sim.presets import cz2f_config, cz2f_phases, m107_config  # noqa: E402
+from ballistic_sim.phases.builder import build_phases  # noqa: E402
+from ballistic_sim.presets import m107_config, rocket_full_config  # noqa: E402
 from ballistic_sim.simulator import simulate  # noqa: E402
 from ballistic_sim.viz.dvbudget import plot_dv_budget  # noqa: E402
 
 
 def test_dv_budget_figure_for_rocket() -> None:
     """plot_dv_budget 对火箭结果返回非空 Figure。"""
-    cfg = cz2f_config()
-    result = simulate(cfg, phases=cz2f_phases(cfg))
+    cfg = rocket_full_config("CZ2F")
+    result = simulate(cfg, phases=build_phases(cfg))
     fig = plot_dv_budget(result, isp_s=300.0)
     assert isinstance(fig, Figure)
     assert fig.get_axes()

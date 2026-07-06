@@ -6,7 +6,8 @@ import numpy as np
 import pytest
 
 from ballistic_sim.constants import RE_EARTH_MEAN
-from ballistic_sim.presets import cz2f_config, cz2f_phases, m107_config
+from ballistic_sim.phases.builder import build_phases
+from ballistic_sim.presets import m107_config, rocket_full_config
 from ballistic_sim.simulator import SimResult, simulate
 from ballistic_sim.viz import attach_launch_lla
 from ballistic_sim.viz.earth import (
@@ -54,8 +55,8 @@ def test_result_to_ecef_enu() -> None:
 
 def test_result_to_ecef_eci() -> None:
     """ECI 结果可正确转换为 ECEF 坐标与高度。"""
-    cfg = cz2f_config()
-    result = simulate(cfg, phases=cz2f_phases(cfg))
+    cfg = rocket_full_config("CZ2F")
+    result = simulate(cfg, phases=build_phases(cfg))
     x, y, z, alt = result_to_ecef(result)
     assert len(x) == len(result.t)
     assert np.all(np.isfinite(x))

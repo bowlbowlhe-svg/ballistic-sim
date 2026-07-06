@@ -15,7 +15,8 @@ from typing import Any, Dict
 import numpy as np
 
 from ballistic_sim.config import apply_overrides
-from ballistic_sim.presets import m107_config, m107_phases
+from ballistic_sim.phases.builder import build_phases
+from ballistic_sim.presets import m107_config
 from ballistic_sim.simulator import simulate
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -36,7 +37,7 @@ def run_vacuum() -> Dict[str, Any]:
             "environment.wind_m_s": [0.0, 0.0, 0.0],
         },
     )
-    result = simulate(cfg, phases=m107_phases())
+    result = simulate(cfg, phases=build_phases(cfg))
     return {
         "case": "vacuum",
         "range_m": _range_of(result),
@@ -48,7 +49,7 @@ def run_vacuum() -> Dict[str, Any]:
 def run_with_drag() -> Dict[str, Any]:
     """有阻力工况：ISA + G1。"""
     cfg = m107_config()
-    result = simulate(cfg, phases=m107_phases())
+    result = simulate(cfg, phases=build_phases(cfg))
     return {
         "case": "drag",
         "range_m": _range_of(result),
@@ -66,7 +67,7 @@ def run_with_wind() -> Dict[str, Any]:
             "environment.wind_m_s": [0.0, 5.0, 0.0],
         },
     )
-    result = simulate(cfg, phases=m107_phases())
+    result = simulate(cfg, phases=build_phases(cfg))
     return {
         "case": "drag_and_wind",
         "range_m": _range_of(result),

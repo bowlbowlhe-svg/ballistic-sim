@@ -80,11 +80,12 @@ def _placeholder_new_result(golden: Dict[str, Any]) -> Dict[str, Any]:
 
 def _m107_actual(golden: Dict[str, Any]) -> Dict[str, Any]:
     """运行 M107 仿真并提取与 golden 对齐的标量指标。"""
-    from ballistic_sim.presets import m107_config, m107_phases
+    from ballistic_sim.phases.builder import build_phases
+    from ballistic_sim.presets import m107_config
     from ballistic_sim.simulator import simulate
 
     cfg = m107_config()
-    result = simulate(cfg, phases=m107_phases())
+    result = simulate(cfg, phases=build_phases(cfg))
     y = result.y
     t = result.t
     idx = -1
@@ -117,17 +118,16 @@ def _cz2f_actual(golden: Dict[str, Any]) -> Dict[str, Any]:
     """运行 CZ-2F 仿真并提取与 golden 对齐的标量指标。"""
     from ballistic_sim.constants import WGS84_A
     from ballistic_sim.dynamics.common import rv_to_oe
-    from ballistic_sim.presets import cz2f_config, cz2f_phases
+    from ballistic_sim.phases.builder import build_phases
+    from ballistic_sim.presets import rocket_full_config
     from ballistic_sim.simulator import simulate
 
     snap = golden.get("config_snapshot", {})
-    cfg = cz2f_config(
+    cfg = rocket_full_config(
+        "CZ2F",
         payload_mass_kg=float(snap.get("payload_mass_kg", 8000.0)),
-        target_peri_km=float(snap.get("target_peri_km", 200.0)),
-        target_apo_km=float(snap.get("target_apo_km", 350.0)),
-        target_inc_deg=float(snap.get("target_inc_deg", 42.0)),
     )
-    result = simulate(cfg, phases=cz2f_phases(cfg))
+    result = simulate(cfg, phases=build_phases(cfg))
     y = result.y
     t = result.t
     idx = -1
