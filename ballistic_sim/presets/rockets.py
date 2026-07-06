@@ -1,7 +1,7 @@
 """运载火箭预设（CZ-2F/CZ-3B 等公开近似参数）。
 
-兼容层: 数据优先从 ``presets/rockets.yaml`` 加载, 保留旧版 ``cz2f_config`` /
-``cz2f_phases`` 函数签名不变。
+兼容层: 数据优先从 ``presets/rockets.yaml`` 加载, 保留旧版 ``cz2f_config``
+函数签名不变。
 """
 
 from __future__ import annotations
@@ -20,12 +20,7 @@ from ballistic_sim.config import (
     VehicleConfig,
 )
 from ballistic_sim.constants import G0_STANDARD
-from ballistic_sim.dynamics.powered_eci import PoweredECIDynamics
-from ballistic_sim.models.propulsion import PropulsionModel
 from ballistic_sim.phases.base import Phase
-from ballistic_sim.phases.builder import build_phases
-from ballistic_sim.phases.events import make_fairing_jettison_event
-from ballistic_sim.phases.powered import PoweredPhase
 from ballistic_sim.phases.terminal import TerminalPhase
 from ballistic_sim.presets.loader import get_rocket, list_rockets
 
@@ -121,16 +116,6 @@ def _build_parallel_stages(
         burn_time=float(core2["m_prop"]) / mdot_core2,
     )
     return s1, s2, s3, m_core1_in_P1, m_core1_in_P2
-
-
-def _guidance_from_rocket(r: Dict[str, Any]) -> Dict[str, Any]:
-    """由火箭预设构造制导初值。"""
-    launch = r.get("launch", {})
-    guid = dict(r.get("guidance", {}))
-    guid.setdefault("lat_deg", float(launch.get("lat_deg", 0.0)))
-    guid.setdefault("lon_deg", float(launch.get("lon_deg", 0.0)))
-    guid.setdefault("azimuth_deg", float(launch.get("azimuth_deg", 90.0)))
-    return guid
 
 
 def _azimuth_for_inclination(lat_deg: float, inc_deg: float) -> float:
@@ -279,18 +264,6 @@ def rocket_full_config(
     )
 
 
-def rocket_full_chain(
-    name: str = "CZ2F",
-    payload_mass_kg: Optional[float] = None,
-) -> list[Phase]:
-    """由 YAML 火箭预设构造完整多级 Phase 链。"""
-    r = get_rocket(name)
-    return _set_terminal_target(
-        build_phases(rocket_full_config(name, payload_mass_kg=payload_mass_kg)),
-        r.get("target"),
-    )
-
-
 def rocket_config(
     name: str = "CZ2F",
     payload_mass_kg: Optional[float] = None,
@@ -378,134 +351,6 @@ def _set_terminal_target(phases: list[Phase], target: Optional[Dict[str, Any]]) 
     return phases
 
 
-def rocket_phases(
-    cfg: SimConfig,
-    name: str = "CZ2F",
-    payload_mass_kg: Optional[float] = None,
-) -> list[Phase]:
-    """由 YAML 火箭预设构造 Phase 列表。
-
-    若 ``cfg.vehicle.stages`` 已提供，则复用 ``build_phases`` 自动构建完整链，
-    以演示与 ``StageConfig`` 的兼容性；否则使用传统手动三段/四段装配。
-    """
-    if cfg.vehicle.stages is not None:
-        r = get_rocket(name)
-        return _set_terminal_target(build_phases(cfg), r.get("target"))
-
-    r = get_rocket(name)
-    payload = (
-        payload_mass_kg if payload_mass_kg is not None else float(r.get("payload_mass_kg", 0.0))
-    )
-    s1, s2, s3, _m_p1, _m_p2 = _build_parallel_stages(
-        r["booster"],
-        r["core1"],
-        r["core2"],
-        r["fairing"],
-        float(r["Aref_core_m2"]),
-        float(r["Aref_parallel_m2"]),
-        payload,
-        r.get("core3"),
-    )
-    base_guid = _guidance_from_rocket(r)
-    base_guid["azimuth_deg"] = cfg.launch.azimuth_deg
-    base_guid["lat_deg"] = cfg.launch.lat_deg
-    base_guid["lon_deg"] = cfg.launch.lon_deg
-
-    guid_P1 = dict(base_guid)
-    dyn_P1 = PoweredECIDynamics(stage=s1, guidance=guid_P1)
-    t_P1_est = float(s1["m_prop"]) / dyn_P1.prop.mdot
-    ph_P1 = PoweredPhase(
-        name=s1["name"],
-        t_span=(cfg.launch.t0_s, cfg.launch.t0_s + t_P1_est * 1.5),
-        dynamics=dyn_P1,
-        guidance=guid_P1,
-        m_dry=float(s1["m_dry"]),
-        m_after_separation=float(s2["m_dry"] + s2["m_prop"]),
-        sep_name="助推分离",
-    )
-
-    guid_P2 = dict(base_guid)
-    dyn_P2 = PoweredECIDynamics(stage=s2, guidance=guid_P2)
-    t_P2_est = float(s2["m_prop"]) / dyn_P2.prop.mdot
-    ph_P2 = PoweredPhase(
-        name=s2["name"],
-        t_span=(cfg.launch.t0_s, cfg.launch.t0_s + t_P2_est * 1.5),
-        dynamics=dyn_P2,
-        guidance=guid_P2,
-        m_dry=float(s2["m_dry"]),
-        m_after_separation=float(s3["m_dry"] + s3["m_prop"]),
-        sep_name="一二级分离",
-    )
-
-    t_P1_and_P2 = t_P1_est + t_P2_est
-    t_P3_est = float(s3["m_prop"]) / PropulsionModel.from_stage(s3).mdot
-    guid_P3 = _upperstage_guidance(base_guid, t_P1_and_P2, t_P3_est)
-    dyn_P3 = PoweredECIDynamics(stage=s3, guidance=guid_P3, use_upperstage=True)
-    fairing_h_m = float(r["fairing"].get("jettison_h_km", 110.0)) * 1e3
-    fairing_ev = make_fairing_jettison_event(
-        mode="altitude",
-        h_m=fairing_h_m,
-        frame="ECI",
-    )
-    ph_P3 = PoweredPhase(
-        name=s3["name"],
-        t_span=(cfg.launch.t0_s, cfg.launch.t0_s + t_P3_est * 1.5),
-        dynamics=dyn_P3,
-        guidance=guid_P3,
-        m_dry=float(s3["m_dry"]),
-        sep_name="SECO",
-    )
-    ph_P3.events.append(fairing_ev)
-
-    phases: list[Phase] = [ph_P1, ph_P2, ph_P3]
-    t_accum = t_P1_and_P2 + t_P3_est
-    dyn_last = dyn_P3
-
-    core3 = r.get("core3")
-    if core3 is not None and r.get("core3_ignition"):
-        mdot_core3 = _mass_flow(core3)
-        t_P4_est = float(core3["m_prop"]) / mdot_core3
-        s4 = dict(
-            name=f"P4 {core3.get('name', '三级')}",
-            thrust_sl=float(core3.get("thrust_sl", 0.0)),
-            thrust_vac=float(core3["thrust_vac"]),
-            isp_vac=float(core3["isp_vac"]),
-            m_prop=float(core3["m_prop"]),
-            m_dry=float(core3["m_dry"]) + payload,
-            Aref=float(np.pi * (float(core3.get("diameter_m", r["diameter_core_m"])) / 2.0) ** 2),
-            burn_time=t_P4_est,
-        )
-        guid_P4 = _upperstage_guidance(base_guid, t_accum, t_P4_est)
-        dyn_P4 = PoweredECIDynamics(stage=s4, guidance=guid_P4, use_upperstage=True)
-        ph_P4 = PoweredPhase(
-            name=str(s4["name"]),
-            t_span=(cfg.launch.t0_s, cfg.launch.t0_s + t_P4_est * 1.5),
-            dynamics=dyn_P4,
-            guidance=guid_P4,
-            m_dry=float(s4.get("m_dry", 0.0)),  # type: ignore[arg-type]
-            sep_name="三级分离",
-        )
-        phases.append(ph_P4)
-        t_accum += t_P4_est
-        dyn_last = dyn_P4
-
-    target = r.get("target")
-    terminal_target = None
-    if isinstance(target, dict):
-        terminal_target = {
-            "peri_km": float(target.get("target_peri_km", 200.0)),
-            "apo_km": float(target.get("target_apo_km", 350.0)),
-        }
-    terminal = TerminalPhase(
-        name="轨道插入",
-        t_span=(cfg.launch.t0_s, cfg.launch.t0_s + 3600.0),
-        dynamics=dyn_last,
-        target=terminal_target,
-    )
-    phases.append(terminal)
-    return phases
-
-
 def cz2f_config(
     payload_mass_kg: float = 8000.0,
     target_peri_km: float = 200.0,
@@ -522,38 +367,10 @@ def cz2f_config(
     )
 
 
-def cz2f_phases(
-    cfg: SimConfig,
-    payload_mass_kg: float = 8000.0,
-) -> list[Phase]:
-    """由 SimConfig 构造 CZ-2F 三段 Phase 列表。"""
-    return rocket_phases(cfg, name="CZ2F", payload_mass_kg=payload_mass_kg)
-
-
-def _upperstage_guidance(
-    base_guid: Dict[str, Any], t_us_start: float, t_us_dur: float
-) -> Dict[str, Any]:
-    """上面级线性俯仰制导。"""
-    g = dict(base_guid)
-    g.update(
-        dict(
-            t_us_start=float(t_us_start),
-            gamma_end_deg=0.0,
-            gamma0_deg=None,
-            pitch_rate_dps=None,
-            t_us_dur=float(t_us_dur),
-        )
-    )
-    return g
-
-
 __all__ = [
     "cz2f_config",
-    "cz2f_phases",
     "rocket_config",
     "rocket_full_config",
-    "rocket_full_chain",
-    "rocket_phases",
     "rocket_stages",
     "list_rockets",
 ]

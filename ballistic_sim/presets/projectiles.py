@@ -15,7 +15,6 @@ from ballistic_sim.config import (
     SimConfig,
     VehicleConfig,
 )
-from ballistic_sim.phases.builder import build_phases
 from ballistic_sim.presets.loader import get_projectile, list_projectiles
 
 
@@ -68,29 +67,8 @@ def m107_config() -> SimConfig:
     return _projectile_config_from_preset("M107")
 
 
-def projectile_phases(name: str) -> list:
-    """由弹丸预设构造 [动力/无动力段, 终点] phase 列表。
-
-    .. deprecated:: v0.4.0
-        后请使用 ``build_phases(cfg)``。
-    """
-    cfg = _projectile_config_from_preset(name)
-    return build_phases(cfg)
-
-
-def m107_phases() -> list:
-    """M107 对应的 phase 列表。
-
-    .. deprecated:: v0.4.0
-        后请使用 ``build_phases(cfg)``。
-    """
-    return projectile_phases("M107")
-
-
 __all__ = [
     "m107_config",
-    "m107_phases",
-    "projectile_phases",
     "_projectile_config_from_preset",
     "list_projectiles",
 ]

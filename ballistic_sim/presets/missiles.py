@@ -18,38 +18,7 @@ from ballistic_sim.config import (
     StageConfig,
     VehicleConfig,
 )
-from ballistic_sim.constants import WGS84_A
-from ballistic_sim.dynamics.powered_eci import PoweredECIDynamics
-from ballistic_sim.phases.base import Phase
-from ballistic_sim.phases.builder import build_phases
-from ballistic_sim.phases.coasting import CoastingPhase
-from ballistic_sim.phases.powered import PoweredPhase
-from ballistic_sim.phases.reentry import ReentryPhase
-from ballistic_sim.phases.terminal import TerminalPhase
 from ballistic_sim.presets.loader import get_missile, list_missiles
-
-H_ENTRY = 100e3
-
-
-def _make_altitude_event(h_m: float, direction: int, terminal: bool = False):
-    def ev(t: float, y: np.ndarray) -> float:
-        r = np.asarray(y[0:3], dtype=float)
-        return float(np.linalg.norm(r) - WGS84_A - h_m)
-
-    ev.terminal = terminal  # type: ignore[attr-defined]
-    ev.direction = direction  # type: ignore[attr-defined]
-    return ev
-
-
-def _make_apogee_event():
-    def ev(t: float, y: np.ndarray) -> float:
-        r = np.asarray(y[0:3], dtype=float)
-        v = np.asarray(y[3:6], dtype=float)
-        return float(np.dot(r, v))
-
-    ev.terminal = False  # type: ignore[attr-defined]
-    ev.direction = -1  # type: ignore[attr-defined]
-    return ev
 
 
 def _mass_flow(stage: Dict[str, Any]) -> float:
@@ -212,77 +181,8 @@ def missile_full_config(name: str) -> SimConfig:
     )
 
 
-def missile_full_chain(name: str) -> list[Phase]:
-    """由 YAML 导弹预设构造完整的 ``PoweredPhase → CoastingPhase → ReentryPhase → TerminalPhase``。"""
-    return build_phases(missile_full_config(name))
-
-
-def missile_phases(name: str) -> list[Phase]:
-    """由 YAML 导弹预设构造 Phase 列表。"""
-    m = get_missile(name)
-    site = m["_site"]
-    guid = dict(m["guidance"])
-    guid["lat_deg"] = float(site["lat"])
-    guid["lon_deg"] = float(site["lon"])
-    stages = _stages_from_missile(m)
-
-    phases: List[Phase] = []
-    for i, s in enumerate(stages):
-        dyn = PoweredECIDynamics(stage=s, guidance=guid)
-        t_burn = float(s["m_prop"]) / dyn.prop.mdot
-        phases.append(
-            PoweredPhase(
-                name=f"{s['name']} 动力",
-                t_span=(0.0, t_burn * 1.5),
-                dynamics=dyn,
-                guidance=guid,
-                m_dry=float(s["m_dry"]),
-                m_after_separation=float(s["m_after_sep"]),
-                sep_name=f"{s['name']} 分离",
-            )
-        )
-
-    # 无动力滑行 + 再入 (沿用末级动力学, 推力关闭)
-    last_stage = dict(stages[-1])
-    last_stage.update(thrust_vac=0.0, thrust_sl=0.0, isp_vac=1.0, m_prop=0.0)
-    dyn_coast = PoweredECIDynamics(
-        stage=last_stage,
-        guidance=guid,
-        modes={"thrust": False, "drag": True, "j2": True},
-    )
-    exit_ev = _make_altitude_event(H_ENTRY, +1, terminal=False)
-    reentry_ev = _make_altitude_event(H_ENTRY, -1, terminal=True)
-    phases.append(
-        CoastingPhase(
-            name="中段",
-            t_span=(0.0, 7200.0),
-            dynamics=dyn_coast,
-            guidance=guid,
-            events=[_make_apogee_event(), exit_ev, reentry_ev],
-        )
-    )
-    phases.append(
-        ReentryPhase(
-            name="再入段",
-            t_span=(0.0, 7200.0),
-            dynamics=dyn_coast,
-            events=[_make_altitude_event(0.0, -1, terminal=True)],
-        )
-    )
-    phases.append(
-        TerminalPhase(
-            name="终点",
-            t_span=(0.0, 7200.0),
-            dynamics=dyn_coast,
-        )
-    )
-    return phases
-
-
 __all__ = [
     "missile_config",
     "missile_full_config",
-    "missile_full_chain",
-    "missile_phases",
     "list_missiles",
 ]

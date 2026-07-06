@@ -72,7 +72,7 @@ def _benchmark_monte_carlo_process() -> Dict[str, Any]:
 
 
 def _benchmark_sixdof_reentry() -> Dict[str, Any]:
-    """10 样本 CZ-2F 预设链仿真（复刻旧 ``rocket_phases`` 行为，不启用真实 6-DOF 再入）。"""
+    """10 样本 CZ-2F 预设链仿真（复刻旧火箭预设链行为，不启用真实 6-DOF 再入）。"""
 
     def _run_samples() -> list:
         results = []
