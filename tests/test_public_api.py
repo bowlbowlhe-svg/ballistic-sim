@@ -26,9 +26,13 @@ def test_public_api_all_consistent() -> None:
     assert public_all == public_dir
 
 
-def test_version_is_0_6_0() -> None:
-    """包版本号为 0.6.0。"""
-    assert ballistic_sim.__version__ == "0.6.0"
+def test_version_format() -> None:
+    """包版本号为非空语义化版本字符串。"""
+    assert isinstance(ballistic_sim.__version__, str)
+    assert len(ballistic_sim.__version__) > 0
+    parts = ballistic_sim.__version__.split(".")
+    assert len(parts) >= 2
+    assert all(p.isdigit() for p in parts[:2])
 
 
 def test_public_api_star_import() -> None:
@@ -45,7 +49,7 @@ def test_public_api_star_import() -> None:
 def test_public_api_reimport() -> None:
     """重新导入包后公开符号仍然可用。"""
     reloaded = importlib.reload(ballistic_sim)
-    assert reloaded.__version__ == "0.6.0"
+    assert reloaded.__version__ == ballistic_sim.__version__
     assert set(reloaded.__all__) == {
         "__version__",
         "SimConfig",

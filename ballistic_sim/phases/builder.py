@@ -252,12 +252,27 @@ def _build_rocket_phases_legacy(cfg: SimConfig) -> List[Phase]:
     if cfg.options.sixdof_reentry:
         from ballistic_sim.dynamics.six_dof import SixDOFDynamics
 
+        # 6-DOF 再入飞行器参数：若用户未显式设置转动惯量则按实心圆柱近似。
+        reentry_mass = float(stage["m_dry"])
+        reentry_diameter = cfg.vehicle.diameter_m
+        r_cyl = reentry_diameter / 2.0
+        reentry_Ix = (
+            cfg.vehicle.Ix
+            if cfg.vehicle.Ix is not None and cfg.vehicle.Ix != 0.1
+            else 0.1 * reentry_mass * r_cyl**2
+        )
+        reentry_It = (
+            cfg.vehicle.It
+            if cfg.vehicle.It is not None and cfg.vehicle.It != 1.0
+            else 0.5 * reentry_mass * r_cyl**2
+        )
+
         six_dof_dyn = SixDOFDynamics(
-            mass_kg=float(stage["m_dry"]),
-            diameter_m=cfg.vehicle.diameter_m,
+            mass_kg=reentry_mass,
+            diameter_m=reentry_diameter,
             form_factor=cfg.vehicle.cd or 1.0,
-            Ix=cfg.vehicle.Ix or 0.1,
-            It=cfg.vehicle.It or 1.0,
+            Ix=reentry_Ix,
+            It=reentry_It,
             x_cp_cg=cfg.vehicle.x_cp_cg or 0.05,
             lat_deg=cfg.launch.lat_deg,
             twist_cal=cfg.vehicle.twist_cal or 20.0,
@@ -481,12 +496,28 @@ def _build_multistage_phases(cfg: SimConfig) -> List[Phase]:
         if cfg.options.sixdof_reentry:
             from ballistic_sim.dynamics.six_dof import SixDOFDynamics
 
+            # 6-DOF 再入飞行器参数：使用有效载荷质量与末级直径估算，
+            # 若用户未显式设置转动惯量则按实心圆柱近似。
+            reentry_mass = float(payload_mass) if payload_mass > 0.0 else float(last_sd["m_dry"])
+            reentry_diameter = float(stages[-1].diameter_m or cfg.vehicle.diameter_m)
+            r_cyl = reentry_diameter / 2.0
+            reentry_Ix = (
+                cfg.vehicle.Ix
+                if cfg.vehicle.Ix is not None and cfg.vehicle.Ix != 0.1
+                else 0.1 * reentry_mass * r_cyl**2
+            )
+            reentry_It = (
+                cfg.vehicle.It
+                if cfg.vehicle.It is not None and cfg.vehicle.It != 1.0
+                else 0.5 * reentry_mass * r_cyl**2
+            )
+
             six_dof_dyn = SixDOFDynamics(
-                mass_kg=float(last_sd["m_dry"]),
-                diameter_m=cfg.vehicle.diameter_m,
+                mass_kg=reentry_mass,
+                diameter_m=reentry_diameter,
                 form_factor=cfg.vehicle.cd or 1.0,
-                Ix=cfg.vehicle.Ix or 0.1,
-                It=cfg.vehicle.It or 1.0,
+                Ix=reentry_Ix,
+                It=reentry_It,
                 x_cp_cg=cfg.vehicle.x_cp_cg or 0.05,
                 lat_deg=cfg.launch.lat_deg,
                 twist_cal=cfg.vehicle.twist_cal or 20.0,

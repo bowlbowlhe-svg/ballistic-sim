@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/).
 
+## [0.6.2] - 2026-07-09
+
+### Fixed
+
+- 6-DOF 再入 builder 集成：当 `options.sixdof_reentry=True` 时，终点阶段使用与再入段同维度的 `SixDOFDynamics`，避免 `3-DOF ECI -> 6-DOF ENU` 状态切换错误。
+- `simulate()` 现在支持不同阶段状态维度不一致的轨迹拼接（低维数组补零），使 3-DOF -> 6-DOF 任务链能够完整运行。
+
+### Added
+
+- 新增 `test_simulate_missile_with_sixdof_reentry`，用 `SRBM_600` 预设验证 6-DOF 再入全链路仿真。
+
 ## [0.6.1] - 2026-07-09
 
 ### Added

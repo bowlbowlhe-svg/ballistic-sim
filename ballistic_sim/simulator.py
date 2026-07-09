@@ -10,6 +10,8 @@ from scipy.integrate import solve_ivp
 
 from ballistic_sim.config import SimConfig, validate_config
 from ballistic_sim.context import _resolve_dynamics_context
+from ballistic_sim.frames import eci_to_ecef, ecef_to_geodetic
+from ballistic_sim.phases.reentry import ReentryPhase
 from ballistic_sim.state_switch import project_state
 
 
@@ -147,31 +149,60 @@ def simulate(
         # 阶段间状态投影
         if ip + 1 < len(phases):
             next_ph = phases[ip + 1]
-            src_dim = ph.state_dim()
-            dst_dim = next_ph.state_dim()
-            src_frame = ph.native_frame()
-            dst_frame = next_ph.native_frame()
-            if src_dim != dst_dim or src_frame != dst_frame:
-                extras = getattr(next_ph, "projection_extras", {})
-                y0 = project_state(
-                    y_end,
-                    src_dim=src_dim,
-                    dst_dim=dst_dim,
-                    src_frame=src_frame,
-                    dst_frame=dst_frame,
-                    lat_deg=cfg.launch.lat_deg,
-                    lon_deg=cfg.launch.lon_deg,
-                    h0=cfg.launch.alt_m,
-                    t=t_abs,
-                    **extras,
-                )
-            else:
+            # 终点阶段不积分，无需投影
+            if next_ph.is_terminal:
                 y0 = y_end.copy()
+            else:
+                src_dim = ph.state_dim()
+                dst_dim = next_ph.state_dim()
+                src_frame = ph.native_frame()
+                dst_frame = next_ph.native_frame()
+                if src_dim != dst_dim or src_frame != dst_frame:
+                    extras = getattr(next_ph, "projection_extras", {})
+                    lat_deg = cfg.launch.lat_deg
+                    lon_deg = cfg.launch.lon_deg
+                    h0 = cfg.launch.alt_m
+                    # 6-DOF 再入段投影到再入点当地 ENU，避免以发射点为原点时
+                    # 坐标数值过大导致高度/大气模型失效。
+                    if (
+                        isinstance(next_ph, ReentryPhase)
+                        and next_ph.fidelity == "sixdof"
+                        and src_frame == "ECI"
+                        and dst_frame == "ENU"
+                    ):
+                        r_ecef = eci_to_ecef(np.asarray(y_end[0:3], dtype=float), t_abs)
+                        lat_deg, lon_deg, _ = ecef_to_geodetic(r_ecef)
+                        h0 = 0.0
+                        next_ph.lat0 = lat_deg
+                        next_ph.lon0 = lon_deg
+                        next_ph.dynamics.lat_deg = lat_deg
+                    y0 = project_state(
+                        y_end,
+                        src_dim=src_dim,
+                        dst_dim=dst_dim,
+                        src_frame=src_frame,
+                        dst_frame=dst_frame,
+                        lat_deg=lat_deg,
+                        lon_deg=lon_deg,
+                        h0=h0,
+                        t=t_abs,
+                        **extras,
+                    )
+                else:
+                    y0 = y_end.copy()
         else:
             y0 = y_end.copy()
 
-    # 合并轨迹
-    y_array = np.concatenate(y_all, axis=0)
+    # 合并轨迹；不同阶段状态维度可能不同（如 3-DOF -> 6-DOF），
+    # 对低维数组补零到最大维度后再拼接。
+    max_dim = max(y.shape[1] for y in y_all)
+    y_all_padded: List[np.ndarray] = []
+    for y in y_all:
+        if y.shape[1] < max_dim:
+            pad = np.zeros((y.shape[0], max_dim - y.shape[1]), dtype=float)
+            y = np.concatenate([y, pad], axis=1)
+        y_all_padded.append(y)
+    y_array = np.concatenate(y_all_padded, axis=0)
     t_array = np.array(t_all, dtype=float)
 
     result = SimResult(

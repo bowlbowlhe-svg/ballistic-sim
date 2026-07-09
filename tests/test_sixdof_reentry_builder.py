@@ -20,6 +20,7 @@ from ballistic_sim.phases.base import PhaseContext
 from ballistic_sim.phases.builder import build_phases
 from ballistic_sim.phases.coasting import CoastingPhase
 from ballistic_sim.phases.reentry import ReentryPhase
+from ballistic_sim.simulator import simulate
 
 
 def _d30_coeff_tables():
@@ -139,3 +140,29 @@ def test_simulate_projectile_with_sixdof_phase() -> None:
     assert sol.t_events is not None
     assert len(sol.t_events) > 1 and sol.t_events[1] is not None
     assert len(sol.t_events[1]) >= 1, f"未触发落地事件: t_events={sol.t_events}"
+
+
+@pytest.mark.slow
+def test_simulate_icbm_with_sixdof_reentry() -> None:
+    """ICBM_8000 预设开启 sixdof_reentry 后可完成全链路仿真。"""
+    from ballistic_sim.presets import missile_full_config
+
+    cfg = missile_full_config("ICBM_8000")
+    cfg = cfg.model_copy(
+        update={
+            "options": OptionsConfig(
+                integrator="DOP853",
+                rtol=1e-6,
+                atol=1e-9,
+                max_step=1.0,
+                terminate_impact=True,
+                sixdof_reentry=True,
+            )
+        }
+    )
+    result = simulate(cfg)
+    assert result.stop_reason == "completed"
+    assert result.y.size > 0
+    assert len(result.t) > 2
+    # 事件链中应包含再入段（sixdof ReentryPhase 触发落地）
+    assert any("再入段" in ev.get("phase", "") for ev in result.event_log)

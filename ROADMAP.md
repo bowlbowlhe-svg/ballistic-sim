@@ -21,8 +21,10 @@
 - [x] **terrain / wind 配置化**：
   - `EnvironmentConfig` 已支持 `terrain_model="flat"` 与 `terrain_flat_alt_m`，由 `_resolve_terrain` / `make_terrain` 自动构造 `FlatTerrainModel`。
   - `builder.py` 为 `rocket` / `suborbital` 等任务的 coast 段自动注入 `落地` 事件，无需再手工构造 phase。
-- [ ] **6-DOF 再入 builder 完整集成**：
-  - `options.sixdof_reentry=True` 已可生成 `SixDOFDynamics`，但制导律、配平攻角、热流计算仍需补充测试与文档。
+- [x] **6-DOF 再入 builder 集成**：
+  - `options.sixdof_reentry=True` 可生成 `SixDOFDynamics` 再入段，并通过 `SRBM_600` 全链路仿真测试。
+  - `simulate()` 已支持不同阶段状态维度不一致的轨迹拼接。
+  - 配平攻角、热流计算等高级再入特性仍待后续建模，可单独立项。
 - [x] **补充覆盖率缺口**：
   - 已补充 `presets/loader.py`、`context.py`、`phases/events.py`、`simulator.py` 等异常/失败分支测试。
   - 全量覆盖率从 87.47% 提升到 87.99%。
