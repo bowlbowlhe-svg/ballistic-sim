@@ -16,6 +16,8 @@
 - `ballistic_sim/viz/` —— 可视化与动画生成
 - `ballistic_sim/api/` —— Web 服务与对外接口
 
+详细使用说明见 [docs/user_guide.md](docs/user_guide.md)。
+
 ## 安装说明
 
 ```bash
@@ -33,6 +35,20 @@ pip install -e .
 # 安装全部可选依赖
 pip install -e ".[all]"
 ```
+
+## 快速开始
+
+```python
+from ballistic_sim.presets import m107_config
+from ballistic_sim.simulator import simulate
+
+cfg = m107_config()
+result = simulate(cfg)
+print("飞行时间:", result.post["t_end_s"], "s")
+print("落点 ENU:", result.post["r_end_m"])
+```
+
+更多示例与说明见 [docs/user_guide.md](docs/user_guide.md)。
 
 ## 教学与占位数据声明
 

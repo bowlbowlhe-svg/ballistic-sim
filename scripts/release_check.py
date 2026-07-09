@@ -18,7 +18,7 @@ from pathlib import Path
 
 from ballistic_sim import __version__
 
-TARGET_VERSION = "0.6.2"
+TARGET_VERSION = "0.6.3"
 
 
 def _fail(message: str) -> None:

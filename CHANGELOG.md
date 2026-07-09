@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/).
 
+## [0.6.3] - 2026-07-09
+
+### Added
+
+- 新增 `docs/user_guide.md` 用户指南，覆盖快速开始、配置体系、预设使用、CLI、Web API、自定义环境、6-DOF 再入、Monte Carlo 等主题。
+- `README.md` 增加快速开始示例并链接到用户指南。
+
 ## [0.6.2] - 2026-07-09
 
 ### Fixed

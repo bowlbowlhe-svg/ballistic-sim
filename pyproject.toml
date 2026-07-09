@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ballistic-sim"
-version = "0.6.2"
+version = "0.6.3"
 description = "Six-degree-of-freedom (6-DOF) ballistic flight simulation with modular phases, guidance, and visualization."
 readme = "README.md"
 license = { text = "MIT" }

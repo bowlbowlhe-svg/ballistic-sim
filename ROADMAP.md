@@ -36,7 +36,7 @@
   - 为 GUI 与 Web API 提供 `simulate_async(cfg)` 或生成器，支持进度回调与中途取消。
 - [ ] **GPU batch 后端完善**：
   - `BatchMPMModel` 已有 GPU 变体，但测试覆盖率与跨平台兼容性仍需加强。
-- [ ] **文档与用户指南**：
-  - 基于当前 `README.md` / `CHANGELOG.md` 补充任务配置教程、YAML 预设说明、API 示例。
+- [x] **文档与用户指南**：
+  - 已新增 `docs/user_guide.md`，包含任务配置、预设、CLI/API、环境自定义、Monte Carlo 等示例。
 - [ ] **持续性能基准**：
   - 把 `scripts/benchmark.py` 接入 CI，监控单发 M107、100 样本 MC、CZ-2F 端到端的耗时回归。
