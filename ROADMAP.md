@@ -10,9 +10,9 @@
 - [ ] **把占位测试迁移到 builder**：
   - `tests/test_icbm.py::_placeholder_icbm_phases()` 仍手工构造 phase 链。
   - 等 ICBM 预设与 builder 成熟后，改为 `rocket_full_config` / `missile_full_config` + `build_phases(cfg)`。
-- [ ] **提升慢测试运行效率**：
-  - 当前全量 pytest 在 Windows 本地约 5 分钟。
-  - 可考虑安装 `pytest-xdist` 并启用 `-n auto` 拆分慢测试。
+- [x] **提升慢测试运行效率**：
+  - 已安装 `pytest-xdist`，`pyproject.toml` 默认 `addopts = "... -n auto"`。
+  - 全量 pytest 从 ~6 分钟降到 ~1 分 20 秒（675 passed / 2 skipped）。
 
 ## 中期（v0.6.0）
 
