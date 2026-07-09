@@ -6,9 +6,6 @@
 
 from __future__ import annotations
 
-from typing import Any
-import warnings
-
 import numpy as np
 import pytest
 from scipy.integrate import solve_ivp
@@ -19,20 +16,17 @@ from ballistic_sim.config import (
     LaunchConfig,
     OptionsConfig,
     SimConfig,
+    StageConfig,
     VehicleConfig,
 )
 from ballistic_sim.dynamics.common import DynamicContext
 from ballistic_sim.dynamics.point_mass import PointMassDynamics
-from ballistic_sim.dynamics.powered_eci import PoweredECIDynamics
 from ballistic_sim.frames import ecef_to_eci, ecef_to_geodetic, eci_to_ecef
 from ballistic_sim.models.aerodynamics import ConstantAeroModel
 from ballistic_sim.models.atmosphere import StandardAtmosphere
-from ballistic_sim.models.terrain import NullTerrainModel, TerrainExtent, TerrainModel
+from ballistic_sim.models.terrain import TerrainExtent, TerrainModel
 from ballistic_sim.models.wind import LogarithmicWind, UniformWind
-from ballistic_sim.phases.coasting import CoastingPhase
 from ballistic_sim.phases.events import make_ground_event
-from ballistic_sim.phases.powered import PoweredPhase
-from ballistic_sim.phases.terminal import TerminalPhase
 from ballistic_sim.context import _resolve_terrain, _resolve_wind
 from ballistic_sim.simulator import simulate
 
@@ -91,159 +85,81 @@ def test_dryden_wind_projectile_simulation_runs() -> None:
     assert result.stop_reason != "integration_failed@无动力弹道"
 
 
-def test_rocket_hilly_terrain_ground_event_depends_on_terrain() -> None:
-    """rocket 任务在 hilly 地形下落地事件触发高度受地形高程影响。"""
-    lat0, lon0 = 0.0, 0.0
-    # 构造一个 100 m 高、覆盖范围足够大的水平地形，确保火箭回落期间不越界
-    elev = np.full((4, 4), 100.0, dtype=float)
-    extent = TerrainExtent(lat_min=-5.0, lat_max=5.0, lon_min=-5.0, lon_max=5.0)
-    terrain = TerrainModel(elev, extent)
+def test_rocket_terrain_ground_event_depends_on_terrain() -> None:
+    """suborbital 任务在 flat 地形下落地事件触发高度受地形高程影响。"""
 
-    # 小型单级火箭，主动段后无动力回落
-    mass = 1000.0
-    m_prop = 50.0
-    m_dry = mass - m_prop
-    Aref = 0.196
-    thrust = 10.0e3
-    isp = 290.0
-    stage: dict[str, Any] = dict(
-        name="small-rocket",
-        thrust_sl=thrust,
-        thrust_vac=thrust * 1.1,
-        isp_vac=isp,
-        m_prop=m_prop,
-        m_dry=m_dry,
-        Aref=Aref,
-    )
-    guid = dict(
-        lat_deg=lat0,
-        lon_deg=lon0,
-        azimuth_deg=90.0,
-        t_pitchover=5.0,
-        kick_deg=85.0,
-        t_kick_end=15.0,
-    )
-    dyn_boost = PoweredECIDynamics(stage=stage, guidance=guid)
-    t_burn = float(stage["m_prop"]) / dyn_boost.prop.mdot
+    def _small_rocket_config(terrain_model: str, terrain_flat_alt_m: float = 0.0) -> SimConfig:
+        env = (
+            EnvironmentConfig(
+                terrain_model="flat",
+                terrain_flat_alt_m=terrain_flat_alt_m,
+                atmosphere="isa",
+                gravity_model="j2",
+            )
+            if terrain_model == "flat"
+            else EnvironmentConfig(
+                terrain_model="null",
+                atmosphere="isa",
+                gravity_model="j2",
+            )
+        )
+        return SimConfig(
+            mission="suborbital",
+            vehicle=VehicleConfig(
+                mass_kg=1000.0,
+                diameter_m=0.5,
+                cd=0.3,
+                stages=[
+                    StageConfig(
+                        name="small-rocket",
+                        thrust_sl=10.0e3,
+                        thrust_vac=11.0e3,
+                        isp_vac=290.0,
+                        m_prop=50.0,
+                        m_dry=0.0,
+                        Aref=0.196,
+                    )
+                ],
+            ),
+            launch=LaunchConfig(
+                lat_deg=0.0,
+                lon_deg=0.0,
+                alt_m=110.0,
+                azimuth_deg=90.0,
+                elevation_deg=90.0,
+                v0_m_s=0.0,
+            ),
+            environment=env,
+            guidance=GuidanceConfig(
+                kick_deg=85.0,
+                t_pitchover=5.0,
+                t_kick_end=15.0,
+                use_drag=True,
+            ),
+            options=OptionsConfig(
+                integrator="RK45",
+                rtol=1e-6,
+                atol=1e-9,
+                max_step=1.0,
+                terminate_impact=True,
+            ),
+        )
 
-    ph_boost = PoweredPhase(
-        name="动力上升",
-        t_span=(0.0, t_burn * 1.5),
-        dynamics=dyn_boost,
-        guidance=guid,
-        m_dry=m_dry,
-        sep_name="燃尽",
-        terrain=terrain,
-        lat0=lat0,
-        lon0=lon0,
-    )
-    coast_stage = dict(
-        name="coast",
-        thrust_sl=0.0,
-        thrust_vac=0.0,
-        isp_vac=1.0,
-        m_prop=0.0,
-        m_dry=m_dry,
-        Aref=Aref,
-    )
-    dyn_coast = PoweredECIDynamics(
-        stage=coast_stage,
-        guidance=guid,
-        modes={"thrust": False, "drag": True, "j2": True},
-    )
-    ph_coast = CoastingPhase(
-        name="无动力回落",
-        t_span=(0.0, 3600.0),
-        dynamics=dyn_coast,
-        guidance=guid,
-        terrain=terrain,
-        lat0=lat0,
-        lon0=lon0,
-    )
-    ph_terminal = TerminalPhase(
-        name="终点",
-        t_span=(0.0, 3600.0),
-        dynamics=dyn_coast,
-        terrain=terrain,
-        lat0=lat0,
-        lon0=lon0,
-    )
-
-    cfg = SimConfig(
-        mission="rocket",
-        vehicle=VehicleConfig(
-            mass_kg=mass,
-            diameter_m=0.5,
-            cd=0.3,
-            area_ref_m2=Aref,
-        ),
-        launch=LaunchConfig(
-            lat_deg=lat0,
-            lon_deg=lon0,
-            alt_m=110.0,
-            azimuth_deg=90.0,
-            elevation_deg=90.0,
-            v0_m_s=0.0,
-        ),
-        environment=EnvironmentConfig(atmosphere="isa", gravity_model="j2"),
-        guidance=GuidanceConfig(),
-        options=OptionsConfig(
-            integrator="RK45",
-            rtol=1e-6,
-            atol=1e-9,
-            max_step=1.0,
-            terminate_impact=True,
-        ),
-    )
-    # 注入自定义 HillyTerrainModel，属于 phase 显式传参的合法例外。
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", DeprecationWarning)
-        result = simulate(cfg, phases=[ph_boost, ph_coast, ph_terminal])
-    assert result.y.size > 0
-    # 应触发落地事件
-    landing_events = [ev for ev in result.event_log if "落地" in (ev.get("name") or "")]
+    cfg = _small_rocket_config("flat", terrain_flat_alt_m=100.0)
+    result = simulate(cfg)
+    assert result.stop_reason == "completed"
+    landing_events = [ev for ev in result.event_log if (ev.get("name") or "") == "落地"]
     assert landing_events, f"未触发落地事件: {result.event_log}"
 
-    # 落地时刻 ECEF 高度应接近地形高程 100 m（允许数值容差）
     r_end = result.y[-1, 0:3]
     r_ecef = eci_to_ecef(r_end, float(result.t[-1]))
     _, _, alt_end = ecef_to_geodetic(r_ecef)
     assert 90.0 < alt_end < 115.0
 
-    # 与同一初始条件但 NullTerrainModel 的落地高度不同
-    ph_boost_nt = PoweredPhase(
-        name="动力上升",
-        t_span=(0.0, t_burn * 1.5),
-        dynamics=dyn_boost,
-        guidance=guid,
-        m_dry=m_dry,
-        sep_name="燃尽",
-        terrain=NullTerrainModel(),
-        lat0=lat0,
-        lon0=lon0,
-    )
-    ph_coast_nt = CoastingPhase(
-        name="无动力回落",
-        t_span=(0.0, 3600.0),
-        dynamics=dyn_coast,
-        guidance=guid,
-        terrain=NullTerrainModel(),
-        lat0=lat0,
-        lon0=lon0,
-    )
-    ph_terminal_nt = TerminalPhase(
-        name="终点",
-        t_span=(0.0, 3600.0),
-        dynamics=dyn_coast,
-        terrain=NullTerrainModel(),
-        lat0=lat0,
-        lon0=lon0,
-    )
-    # 注入 NullTerrainModel 做对比，属于 phase 显式传参的合法例外。
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", DeprecationWarning)
-        result_nt = simulate(cfg, phases=[ph_boost_nt, ph_coast_nt, ph_terminal_nt])
-    landing_events_nt = [ev for ev in result_nt.event_log if "落地" in (ev.get("name") or "")]
+    cfg_null = _small_rocket_config("null")
+    result_nt = simulate(cfg_null)
+    assert result_nt.stop_reason == "completed"
+    landing_events_nt = [ev for ev in result_nt.event_log if (ev.get("name") or "") == "落地"]
     assert landing_events_nt, f"未触发落地事件 (null terrain): {result_nt.event_log}"
     r_end_nt = result_nt.y[-1, 0:3]
     r_ecef_nt = eci_to_ecef(r_end_nt, float(result_nt.t[-1]))

@@ -210,6 +210,32 @@ class NullTerrainModel:
         pass
 
 
+class FlatTerrainModel:
+    """恒定高程地形，用于测试与简化场景。"""
+
+    def __init__(self, altitude: float = 0.0, extent: Optional[TerrainExtent] = None) -> None:
+        self.altitude = float(altitude)
+        self.extent = extent
+
+    def height_at(self, lat: float, lon: float) -> float:
+        return self.altitude
+
+    def height_at_enu(self, e: float, n: float, lat0: float, lon0: float) -> float:
+        return self.altitude
+
+    def max_height(self) -> float:
+        return self.altitude
+
+    def min_height(self) -> float:
+        return self.altitude
+
+    def impact_check(self, lat: float, lon: float, alt: float, margin: float = 0.0) -> bool:
+        return alt <= self.altitude + margin + 0.1
+
+    def clear_cache(self) -> None:
+        pass
+
+
 # ==============================================================================
 # 程序化地形
 # ==============================================================================
@@ -554,13 +580,13 @@ def make_terrain(
     path: Optional[Union[str, Path]] = None,
     extent: Optional[TerrainExtent] = None,
     **kwargs,
-) -> Union[TerrainModel, NullTerrainModel]:
+) -> Union[TerrainModel, NullTerrainModel, FlatTerrainModel]:
     """地形模型工厂函数。
 
     Parameters
     ----------
     model:
-        ``"null"``、``"hilly"``、``"numpy"``、``"image"``、``"geotiff"``、
+        ``"null"``、``"flat"``、``"hilly"``、``"numpy"``、``"image"``、``"geotiff"``、
         ``"srtm_dir"``、``"srtm_files"``。
     path:
         文件或目录路径（如适用）。
@@ -570,6 +596,8 @@ def make_terrain(
     name = model.lower()
     if name in ("null", "none"):
         return NullTerrainModel()
+    if name == "flat":
+        return FlatTerrainModel(altitude=kwargs.get("altitude", 0.0), extent=extent)
     if name == "hilly":
         return generate_hilly_terrain(extent=extent or TerrainExtent(0.0, 1.0, 0.0, 1.0), **kwargs)
     if name == "numpy":

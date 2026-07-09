@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 import numpy as np
 
@@ -16,7 +16,7 @@ from ballistic_sim.guidance.reentry_guidance import ReentryGuidance
 from ballistic_sim.phases.base import Phase
 from ballistic_sim.phases.coasting import CoastingPhase
 from ballistic_sim.phases.powered import PoweredPhase
-from ballistic_sim.phases.events import make_apogee_event
+from ballistic_sim.phases.events import make_apogee_event, make_ground_event
 from ballistic_sim.phases.reentry import ReentryPhase
 from ballistic_sim.phases.terminal import TerminalPhase
 
@@ -422,6 +422,7 @@ def _build_multistage_phases(cfg: SimConfig) -> List[Phase]:
     # 滑行/再入/终点：rocket/icbm/missile/suborbital 均插入滑行段；
     # rocket 任务默认以轨道插入为终点，滑行段默认只带远地点/落地事件。
     insert_reentry = cfg.mission in ("icbm", "missile") or cfg.options.sixdof_reentry
+    coast_events: List[Callable[[float, np.ndarray], float]] = []
     if cfg.mission in ("rocket", "icbm", "missile", "suborbital"):
         if insert_reentry:
             # 对 icbm/missile，滑行段以 100 km 再入高度为 terminal 事件，
@@ -448,6 +449,18 @@ def _build_multistage_phases(cfg: SimConfig) -> List[Phase]:
                 _altitude_event(_r_entry, +1, terminal=False, name="出大气"),
                 _altitude_event(_h_entry, -1, terminal=True, name="再入"),
             ]
+        elif cfg.options.terminate_impact:
+            # 亚轨道/火箭回落：远地点事件记录弹道顶点，落地事件负责终止。
+            apogee_ev = make_apogee_event(frame="ECI")
+            apogee_ev.name = "远地点"  # type: ignore[attr-defined]
+            ground_ev = make_ground_event(
+                frame="ECI",
+                terrain=terrain,
+                lat0=cfg.launch.lat_deg,
+                lon0=cfg.launch.lon_deg,
+            )
+            ground_ev.name = "落地"  # type: ignore[attr-defined]
+            coast_events = [apogee_ev, ground_ev]
         else:
             coast_events = []
 

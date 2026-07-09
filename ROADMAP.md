@@ -18,8 +18,9 @@
 
 - [ ] **正式移除 `simulate(..., phases=...)` 参数**：
   - 在 v0.5.0 已标记 `DeprecationWarning`，建议至少保留一个次要版本后于 v0.6.0 移除。
-- [ ] ** terrain / wind 配置化**：
-  - 目前自定义地形/风场需手工注入 phase，考虑在 `EnvironmentConfig` 中支持 `terrain_file` / `wind_profile` 等字段，由 builder 自动构造对应模型。
+- [x] **terrain / wind 配置化**：
+  - `EnvironmentConfig` 已支持 `terrain_model="flat"` 与 `terrain_flat_alt_m`，由 `_resolve_terrain` / `make_terrain` 自动构造 `FlatTerrainModel`。
+  - `builder.py` 为 `rocket` / `suborbital` 等任务的 coast 段自动注入 `落地` 事件，无需再手工构造 phase。
 - [ ] **6-DOF 再入 builder 完整集成**：
   - `options.sixdof_reentry=True` 已可生成 `SixDOFDynamics`，但制导律、配平攻角、热流计算仍需补充测试与文档。
 - [ ] **补充覆盖率缺口**：

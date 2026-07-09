@@ -102,6 +102,8 @@ def _resolve_terrain(cfg: SimConfig):
         kwargs["max_height"] = env.terrain_max_height
 
     path = env.terrain_path
+    if name == "flat":
+        return make_terrain("flat", altitude=env.terrain_flat_alt_m, extent=extent)
     if name == "hilly":
         return make_terrain("hilly", extent=extent or TerrainExtent(0.0, 1.0, 0.0, 1.0), **kwargs)
     if name in ("numpy", "image", "geotiff", "srtm_dir", "srtm_files"):

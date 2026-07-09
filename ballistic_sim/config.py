@@ -165,8 +165,9 @@ class EnvironmentConfig(BaseModel):
     )
     use_terrain: bool = Field(default=False, description="是否启用地形（兼容开关）")
     terrain_model: Literal[
-        "null", "hilly", "numpy", "image", "geotiff", "srtm_dir", "srtm_files"
+        "null", "flat", "hilly", "numpy", "image", "geotiff", "srtm_dir", "srtm_files"
     ] = Field(default="null", description="地形模型类型")
+    terrain_flat_alt_m: float = Field(default=0.0, description="flat 地形恒定高程 (m)")
     terrain_path: Optional[str] = Field(default=None, description="地形文件或目录路径")
     terrain_extent: Optional[Tuple[float, float, float, float]] = Field(
         default=None,
