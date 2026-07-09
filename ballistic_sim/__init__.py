@@ -9,13 +9,15 @@ from ballistic_sim.config import (
     validate_config,
 )
 from ballistic_sim.phases.builder import build_phases
-from ballistic_sim.simulator import SimResult, simulate
+from ballistic_sim.simulator import SimResult, simulate, simulate_async, simulate_streaming
 
-__version__ = "0.6.3"
+__version__ = "0.7.0"
 __all__ = [
     "__version__",
     "SimConfig",
     "simulate",
+    "simulate_async",
+    "simulate_streaming",
     "build_phases",
     "validate_config",
     "load_config",

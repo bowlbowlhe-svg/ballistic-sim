@@ -54,6 +54,8 @@ def test_public_api_reimport() -> None:
         "__version__",
         "SimConfig",
         "simulate",
+        "simulate_async",
+        "simulate_streaming",
         "build_phases",
         "validate_config",
         "load_config",

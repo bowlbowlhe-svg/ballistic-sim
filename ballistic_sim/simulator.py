@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import asyncio
+from concurrent.futures import Executor
 from dataclasses import dataclass, field
-from typing import Any, Dict, List
+from functools import partial
+from typing import Any, AsyncIterator, Dict, List, Optional
 
 import numpy as np
 from scipy.integrate import solve_ivp
@@ -236,3 +239,65 @@ def _postprocess(cfg: SimConfig, result: SimResult) -> Dict[str, Any]:
         out["r_end_m"] = y_end[0:3].tolist()
         out["v_end_m_s"] = y_end[3:6].tolist()
     return out
+
+
+async def simulate_async(
+    cfg: SimConfig,
+    *,
+    reuse_context: bool = True,
+    executor: Optional[Executor] = None,
+) -> SimResult:
+    """异步运行 ``simulate``。
+
+    仿真本身在 CPU 密集型线程中执行，通过 ``run_in_executor`` 不阻塞事件循环，
+    适用于 Web 服务或并发批量调度。
+
+    Parameters
+    ----------
+    cfg:
+        仿真配置。
+    reuse_context:
+        是否复用 ``cfg`` 上已绑定的动力学上下文。
+    executor:
+        可选自定义线程/进程池执行器；默认使用 asyncio 默认执行器。
+    """
+    loop = asyncio.get_running_loop()
+    func = partial(simulate, cfg, reuse_context=reuse_context)
+    return await loop.run_in_executor(executor, func)
+
+
+async def simulate_streaming(
+    cfg: SimConfig,
+    *,
+    reuse_context: bool = True,
+    progress_interval_s: float = 0.5,
+) -> AsyncIterator[Dict[str, Any]]:
+    """流式运行仿真并定期产出进度事件。
+
+    产出字典格式：
+
+    - ``{"type": "progress", "elapsed_s": float, "done": False}``
+    - ``{"type": "result", "done": True, "result": SimResult}``
+
+    Parameters
+    ----------
+    cfg:
+        仿真配置。
+    reuse_context:
+        是否复用 ``cfg`` 上已绑定的动力学上下文。
+    progress_interval_s:
+        两次进度事件之间的最短时间间隔（秒）。
+    """
+    loop = asyncio.get_running_loop()
+    func = partial(simulate, cfg, reuse_context=reuse_context)
+    future = loop.run_in_executor(None, func)
+    start = loop.time()
+    while not future.done():
+        elapsed = loop.time() - start
+        yield {"type": "progress", "elapsed_s": elapsed, "done": False}
+        try:
+            await asyncio.wait_for(asyncio.shield(future), timeout=progress_interval_s)
+        except asyncio.TimeoutError:
+            continue
+    result = future.result()
+    yield {"type": "result", "done": True, "result": result}

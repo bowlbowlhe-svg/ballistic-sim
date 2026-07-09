@@ -50,6 +50,28 @@ print("落点 ENU:", result.post["r_end_m"])
 
 更多示例与说明见 [docs/user_guide.md](docs/user_guide.md)。
 
+### 异步 / 流式仿真
+
+```python
+import asyncio
+from ballistic_sim.presets import m107_config
+from ballistic_sim import simulate_async, simulate_streaming
+
+async def main():
+    cfg = m107_config()
+    # 不阻塞事件循环运行仿真
+    result = await simulate_async(cfg)
+
+    # 或流式接收进度事件
+    async for event in simulate_streaming(cfg, progress_interval_s=0.5):
+        if event["type"] == "progress":
+            print(f"已运行 {event['elapsed_s']:.2f} s")
+        else:
+            print("完成，飞行时间:", event["result"].post["t_end_s"], "s")
+
+asyncio.run(main())
+```
+
 ## 教学与占位数据声明
 
 本仓库包含的预设文件、示例数据与占位参数仅用于教学、本地调试和回归测试，不代表任何真实飞行器性能。使用真实任务数据前，请替换 `presets/` 与 `data/` 中的相应文件。

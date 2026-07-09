@@ -11,6 +11,9 @@ jobs:
   benchmark:
     runs-on: ubuntu-latest
     continue-on-error: true
+    permissions:
+      actions: read
+      contents: read
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -23,7 +26,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e .[all]
+          pip install -e ".[all]"
 
       - name: Run benchmark
         run: python scripts/benchmark.py
@@ -35,9 +38,84 @@ jobs:
           path: benchmark_results.json
           if-no-files-found: error
 
-      - name: Compare with previous tag (placeholder)
+      - name: Download previous benchmark results
+        id: prev
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "Performance regression check placeholder."
-          echo "Current total elapsed:"
-          python -c "import json; d=json.load(open('benchmark_results.json')); print(f\"{d['total_elapsed_s']:.3f} s\")"
-          echo "TODO: fetch benchmark_results.json from previous tag and fail if >10% regression."
+          mkdir -p prev
+          run_id=$(gh run list --workflow=benchmark.yml --branch=main --status=success --json databaseId --limit 2 --repo ${{ github.repository }} \
+            | python -c "import json,sys; runs=json.load(sys.stdin); ids=[r['databaseId'] for r in runs if r['databaseId'] != ${{ github.run_id }}]; print(ids[0] if ids else '')")
+          if [ -n "$run_id" ]; then
+            echo "Previous successful run: $run_id"
+            gh run download "$run_id" --name benchmark-results --dir prev --repo ${{ github.repository }}
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No previous successful run found."
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Compare with previous benchmark
+        if: steps.prev.outputs.found == 'true'
+        env:
+          REGRESSION_THRESHOLD: '0.50'
+        run: |
+          python << 'PY'
+          import json
+          import os
+          import sys
+
+          THRESHOLD = float(os.environ.get("REGRESSION_THRESHOLD", "0.50"))
+
+          with open("benchmark_results.json", encoding="utf-8") as f:
+              current = json.load(f)
+          with open("prev/benchmark_results.json", encoding="utf-8") as f:
+              previous = json.load(f)
+
+          def ratio(cur, prev):
+              return (cur - prev) / prev if prev else 0.0
+
+          regressions = []
+          summary_lines = [
+              "## Performance Benchmark Comparison",
+              "",
+              "| Benchmark | Previous (s) | Current (s) | Regression |",
+              "|-----------|-------------:|------------:|-----------:|",
+          ]
+
+          prev_by_name = {b["name"]: b for b in previous.get("benchmarks", [])}
+          for cur in current.get("benchmarks", []):
+              name = cur["name"]
+              prev = prev_by_name.get(name)
+              if prev is None:
+                  continue
+              cur_elapsed = cur["elapsed_s"]
+              prev_elapsed = prev["elapsed_s"]
+              reg = ratio(cur_elapsed, prev_elapsed)
+              summary_lines.append(
+                  f"| {name} | {prev_elapsed:.3f} | {cur_elapsed:.3f} | {reg:+.1%} |"
+              )
+              if reg > THRESHOLD:
+                  regressions.append((name, prev_elapsed, cur_elapsed, reg))
+
+          total_reg = ratio(current.get("total_elapsed_s", 0), previous.get("total_elapsed_s", 1))
+          summary_lines.append(
+              f"| **total** | **{previous.get('total_elapsed_s', 0):.3f}** | "
+              f"**{current.get('total_elapsed_s', 0):.3f}** | **{total_reg:+.1%}** |"
+          )
+
+          summary = "\n".join(summary_lines)
+          with open(os.environ.get("GITHUB_STEP_SUMMARY", os.devnull), "a", encoding="utf-8") as f:
+              f.write(summary + "\n")
+
+          if total_reg > THRESHOLD:
+              regressions.append(("total", previous.get("total_elapsed_s"), current.get("total_elapsed_s"), total_reg))
+
+          if regressions:
+              print("Performance regressions detected (> {:.0%}):".format(THRESHOLD))
+              for name, prev, cur, reg in regressions:
+                  print(f"  {name}: {prev:.3f} s -> {cur:.3f} s ({reg:+.1%})")
+              sys.exit(1)
+
+          print("No significant performance regressions detected.")
+          PY

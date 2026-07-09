@@ -32,11 +32,11 @@
 
 ## 长期 / 探索性
 
-- [ ] **异步 / 流式仿真 API**：
-  - 为 GUI 与 Web API 提供 `simulate_async(cfg)` 或生成器，支持进度回调与中途取消。
+- [x] **异步 / 流式仿真 API**：
+  - 已新增 `simulate_async(cfg)` 与 `simulate_streaming(cfg)`，支持不阻塞事件循环运行仿真并产出进度事件。
 - [ ] **GPU batch 后端完善**：
   - `BatchMPMModel` 已有 GPU 变体，但测试覆盖率与跨平台兼容性仍需加强。
 - [x] **文档与用户指南**：
   - 已新增 `docs/user_guide.md`，包含任务配置、预设、CLI/API、环境自定义、Monte Carlo 等示例。
-- [ ] **持续性能基准**：
-  - 把 `scripts/benchmark.py` 接入 CI，监控单发 M107、100 样本 MC、CZ-2F 端到端的耗时回归。
+- [x] **持续性能基准**：
+  - 已完善 `.github/workflows/benchmark.yml`：运行 `scripts/benchmark.py` 后自动与上一次 `main` 分支成功的基准结果对比，回归超过 50% 时标记失败并输出 GitHub Step Summary。

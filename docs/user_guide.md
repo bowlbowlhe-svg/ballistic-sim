@@ -163,6 +163,36 @@ uvicorn ballistic_sim.api.main:app --host 127.0.0.1 --port 8000
 
 ---
 
+## 异步 / 流式仿真 API
+
+对于 GUI、Web 后端或需要并发调度多个仿真的场景，可使用异步包装：
+
+```python
+import asyncio
+from ballistic_sim.presets import m107_config
+from ballistic_sim import simulate_async, simulate_streaming
+
+async def run():
+    cfg = m107_config()
+
+    # 方式一：等待仿真完成，不阻塞事件循环
+    result = await simulate_async(cfg)
+    print("飞行时间:", result.post["t_end_s"], "s")
+
+    # 方式二：流式接收进度事件（最终事件包含结果）
+    async for event in simulate_streaming(cfg, progress_interval_s=0.5):
+        if event["type"] == "progress":
+            print(f"已运行 {event['elapsed_s']:.2f} s")
+        else:
+            print("完成，结果:", event["result"].post)
+
+asyncio.run(run())
+```
+
+`simulate_async` 把 CPU 密集的 `simulate` 放到执行器中运行；`simulate_streaming` 在此基础上定期产出 `progress` 字典，方便前端展示进度条。
+
+---
+
 ## 自定义环境
 
 通过 `EnvironmentConfig` 可切换风场与地形模型。下面使用对数风廓线与平坦地形：

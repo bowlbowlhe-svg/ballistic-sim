@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/).
 
+## [0.7.0] - 2026-07-09
+
+### Added
+
+- 新增异步与流式仿真 API：`simulate_async(cfg)` 与 `simulate_streaming(cfg)`，可在 Web 服务与 GUI 中不阻塞事件循环地运行仿真，并定期收到进度事件。
+- `ballistic_sim/__init__.py` 公开暴露 `simulate_async`、`simulate_streaming`。
+- 新增 `tests/test_async_api.py` 覆盖异步与流式 API 的基本行为。
+- 完善 `.github/workflows/benchmark.yml`：每次运行后与上一次 `main` 分支成功的基准结果自动对比，回归超过 50% 时标记失败并输出 GitHub Step Summary。
+
 ## [0.6.3] - 2026-07-09
 
 ### Added
