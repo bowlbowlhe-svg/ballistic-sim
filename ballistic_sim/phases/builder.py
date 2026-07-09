@@ -215,7 +215,17 @@ def _build_rocket_phases_legacy(cfg: SimConfig) -> List[Phase]:
         "t_kick_end": 25.0,
     }
     guidance = _inject_powered_guidance(guidance, cfg, stage, is_terminal_stage=True)
-    dyn = PoweredECIDynamics(stage=stage, guidance=guidance)
+    if cfg.guidance.gamma_bo_target_deg is not None:
+        guidance["gamma_bo_target_deg"] = float(cfg.guidance.gamma_bo_target_deg)
+        guidance["t_shape_start"] = (
+            float(cfg.guidance.t_shape_start) if cfg.guidance.t_shape_start is not None else 0.0
+        )
+        guidance["t_shape_dur"] = float(cfg.guidance.t_shape_dur)
+    dyn = PoweredECIDynamics(
+        stage=stage,
+        guidance=guidance,
+        modes={"drag": cfg.guidance.use_drag, "j2": True, "thrust": True},
+    )
     t_burn_est = float(stage["m_prop"]) / dyn.prop.mdot
     phases: List[Phase] = [
         PoweredPhase(
@@ -336,6 +346,12 @@ def _build_multistage_phases(cfg: SimConfig) -> List[Phase]:
         "kick_deg": cfg.guidance.kick_deg if cfg.guidance.kick_deg != 0.0 else 3.0,
         "t_kick_end": cfg.guidance.t_kick_end,
     }
+    if cfg.guidance.gamma_bo_target_deg is not None:
+        base_guid["gamma_bo_target_deg"] = float(cfg.guidance.gamma_bo_target_deg)
+        base_guid["t_shape_start"] = (
+            float(cfg.guidance.t_shape_start) if cfg.guidance.t_shape_start is not None else 0.0
+        )
+        base_guid["t_shape_dur"] = float(cfg.guidance.t_shape_dur)
 
     total_stage_mass = sum(s.m_dry + s.m_prop for s in stages)
     payload_mass = max(float(cfg.vehicle.mass_kg) - float(total_stage_mass), 0.0)
@@ -365,7 +381,12 @@ def _build_multistage_phases(cfg: SimConfig) -> List[Phase]:
         guid = _inject_powered_guidance(
             guid, cfg, sd, is_terminal_stage=(is_last and cfg.mission == "missile")
         )
-        dyn = PoweredECIDynamics(stage=sd, guidance=guid, use_upperstage=use_upperstage)
+        dyn = PoweredECIDynamics(
+            stage=sd,
+            guidance=guid,
+            modes={"drag": cfg.guidance.use_drag, "j2": True, "thrust": True},
+            use_upperstage=use_upperstage,
+        )
         t_burn = sd["m_prop"] / dyn.prop.mdot
         phases.append(
             PoweredPhase(
@@ -395,7 +416,7 @@ def _build_multistage_phases(cfg: SimConfig) -> List[Phase]:
     dyn_coast = PoweredECIDynamics(
         stage=last_sd,
         guidance=base_guid,
-        modes={"thrust": False, "drag": True, "j2": True},
+        modes={"thrust": False, "drag": cfg.guidance.use_drag, "j2": True},
     )
 
     # 滑行/再入/终点：rocket/icbm/missile/suborbital 均插入滑行段；

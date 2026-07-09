@@ -4,9 +4,9 @@
 
 ## 短期（v0.5.x）
 
-- [ ] **清理 phase 显式传参的遗留例外**：
-  - `ballistic_sim/guidance/targeting.py` 因需要对 phase 做 in-place 制导/阻力调整而保留 `simulate(cfg, phases=...)`。
-  - 后续可通过扩展 `GuidanceConfig` 或新增 `post_build_phases_hook` 机制，把调整逻辑纳入 `SimConfig`，从而彻底移除显式 `phases` 参数。
+- [x] **清理 phase 显式传参的遗留例外**：
+  - 已在 `GuidanceConfig` 新增 `use_drag` 与 gamma 整形字段，`builder.py` 构造 `PoweredECIDynamics` 时读取；`targeting.py` 改为 `simulate(cfg)`。
+  - 当前 `ballistic_sim/` 内部已无 `simulate(cfg, phases=...)` 调用。
 - [ ] **把占位测试迁移到 builder**：
   - `tests/test_icbm.py::_placeholder_icbm_phases()` 仍手工构造 phase 链。
   - 等 ICBM 预设与 builder 成熟后，改为 `rocket_full_config` / `missile_full_config` + `build_phases(cfg)`。

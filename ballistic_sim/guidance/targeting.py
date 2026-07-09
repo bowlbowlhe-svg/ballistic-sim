@@ -6,14 +6,12 @@
 
 from __future__ import annotations
 
-import warnings
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 from scipy.optimize import brentq, least_squares, minimize_scalar
 
 from ballistic_sim.config import apply_overrides
-from ballistic_sim.phases.builder import build_phases
 from ballistic_sim.frames import haversine_distance, initial_bearing
 from ballistic_sim.guidance.firecontrol import solve_firing_solution_latlon
 from ballistic_sim.presets.missiles import missile_config, missile_full_config
@@ -109,32 +107,16 @@ def _simulate_shaped(
     ov = {"guidance.kick_deg": float(kick_deg)}
     if az_deg is not None:
         ov["launch.azimuth_deg"] = float(az_deg)
+    ov["guidance.use_drag"] = bool(use_drag)
+    if gamma_bo_target_deg is not None:
+        ov["guidance.gamma_bo_target_deg"] = float(gamma_bo_target_deg)
+        ov["guidance.t_shape_start"] = float(t_shape_start) if t_shape_start is not None else 0.0
+        ov["guidance.t_shape_dur"] = float(t_shape_dur)
     if overrides:
         ov.update(overrides)
     cfg = apply_overrides(cfg, ov)
 
-    phases = build_phases(cfg)
-    for ph in phases:
-        # 保留扩展字段，但不启用（避免破坏现有开环制导时序）
-        g = getattr(ph, "guidance", None)
-        if isinstance(g, dict):
-            if gamma_bo_target_deg is not None:
-                g.setdefault("_gamma_bo_target_deg", float(gamma_bo_target_deg))
-                start = float(t_shape_start) if t_shape_start is not None else 0.0
-                g.setdefault("_t_shape_start", start)
-                g.setdefault("_t_shape_dur", float(t_shape_dur))
-
-    for ph in phases:
-        dyn = getattr(ph, "dynamics", None)
-        if dyn is not None and hasattr(dyn, "modes") and isinstance(dyn.modes, dict):
-            dyn.modes["drag"] = bool(use_drag)
-
-    # 必须显式传入 phases：本函数在 build_phases 后对 phase 级制导参数与动力学模式
-    # 做了 in-place 调整（drag 开关等），无法仅通过 SimConfig 表达。
-    # 作为内部调用方，临时抑制弃用警告。
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", DeprecationWarning)
-        return simulate(cfg, phases=phases)
+    return simulate(cfg)
 
 
 def _range_for_kick(

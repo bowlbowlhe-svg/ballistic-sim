@@ -210,6 +210,12 @@ class GuidanceConfig(BaseModel):
     guidance_replan_period: float = Field(default=2.0, gt=0, description="制导重规划周期 (s)")
     aag_max_iter: int = Field(default=30, gt=0, description="AAG 最大迭代次数")
     aag_position_gain: float = Field(default=0.005, ge=0.0, description="AAG 终端位置反馈增益")
+    use_drag: bool = Field(default=True, description="动力/滑行段是否启用气动阻力")
+    gamma_bo_target_deg: Optional[float] = Field(
+        default=None, ge=-90, le=90, description="整形目标弹道倾角 (deg)"
+    )
+    t_shape_start: Optional[float] = Field(default=None, ge=0, description="整形开始时刻 (s)")
+    t_shape_dur: float = Field(default=60.0, gt=0, description="整形持续时间 (s)")
 
 
 class OptionsConfig(BaseModel):

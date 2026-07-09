@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 - `simulate(cfg, phases=None)` 现在自动调用 `build_phases(cfg)` 构造阶段；显式传入 `phases` 自 v0.5.0 起已弃用，请改用 `simulate(cfg)`。
 - CLI、API、Monte Carlo、制导 targeting、GUI 等内部调用方全面收敛到 `SimConfig + build_phases`，不再显式传递 phases。
+- targeting 模块不再显式传 phases，阻力开关通过 GuidanceConfig.use_drag 表达。
 
 ### Added
 
