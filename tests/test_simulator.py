@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from unittest.mock import patch
+
 import numpy as np
 
 from ballistic_sim.config import (
@@ -223,3 +225,19 @@ def test_resolve_terrain_srtm_tile_parsing(tmp_path) -> None:
     model = tile.to_model()
     # flipud 后第 0 行对应原数组末行
     assert model.max_height() == 123.0
+
+
+def test_simulate_reports_integration_failure() -> None:
+    """当 solve_ivp 返回 success=False 时，simulate 应标记 stop_reason。"""
+    from ballistic_sim.simulator import simulate
+
+    cfg = _make_cfg()
+    fake_y = np.zeros((7, 1), dtype=float)
+    fake_sol = type(
+        "FakeSol",
+        (),
+        {"success": False, "t": np.array([0.0]), "y": fake_y, "t_events": None},
+    )()
+    with patch("ballistic_sim.simulator.solve_ivp", return_value=fake_sol):
+        result = simulate(cfg)
+    assert result.stop_reason.startswith("integration_failed")

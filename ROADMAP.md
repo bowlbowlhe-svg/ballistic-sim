@@ -23,10 +23,10 @@
   - `builder.py` 为 `rocket` / `suborbital` 等任务的 coast 段自动注入 `落地` 事件，无需再手工构造 phase。
 - [ ] **6-DOF 再入 builder 完整集成**：
   - `options.sixdof_reentry=True` 已可生成 `SixDOFDynamics`，但制导律、配平攻角、热流计算仍需补充测试与文档。
-- [ ] **补充覆盖率缺口**：
-  - `ballistic_sim/presets/loader.py` 异常分支。
-  - `ballistic_sim/viz/*` 中依赖可选依赖（plotly、pyvista）的分支。
-  - `ballistic_sim/guidance/*` 中部分失败回退路径。
+- [x] **补充覆盖率缺口**：
+  - 已补充 `presets/loader.py`、`context.py`、`phases/events.py`、`simulator.py` 等异常/失败分支测试。
+  - 全量覆盖率从 87.47% 提升到 87.99%。
+  - `viz/*` 可选依赖分支与部分 `guidance/*` 分支留待后续按需补强。
 
 ## 长期 / 探索性
 

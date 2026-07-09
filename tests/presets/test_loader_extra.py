@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+from unittest.mock import patch
+
+import numpy as np
 import pytest
 
 from ballistic_sim.presets.loader import (
+    _load_yaml,
     get_missile,
     get_projectile,
     get_rocket,
@@ -14,6 +18,7 @@ from ballistic_sim.presets.loader import (
     load_missiles,
     load_projectiles,
     load_rockets,
+    make_aero_tables,
 )
 
 
@@ -96,3 +101,55 @@ def test_get_rocket_has_core1() -> None:
     r = get_rocket("CZ2F")
     assert "core1" in r
     assert "thrust_vac" in r["core1"]
+
+
+def test_load_yaml_missing_file() -> None:
+    """_load_yaml 在预设文件不存在时抛出 FileNotFoundError。"""
+    with pytest.raises(FileNotFoundError, match="预设文件不存在"):
+        _load_yaml("not_a_real_preset_file")
+
+
+def test_get_missile_missing_launch_site() -> None:
+    """get_missile 在发射场缺失时抛出 KeyError。"""
+    fake_data = {
+        "missiles": {"TEST_MISSILE": {"launch_site": "missing_site"}},
+        "launch_sites": {},
+    }
+    with patch("ballistic_sim.presets.loader.load_missiles", return_value=fake_data):
+        with pytest.raises(KeyError, match="引用未知发射场"):
+            get_missile("TEST_MISSILE")
+
+
+def test_make_aero_tables_matching_lengths() -> None:
+    """aero 字段各系数与 ma 长度匹配时应构造二维表。"""
+    preset = {
+        "aero": {
+            "ma": [0.0, 1.0, 2.0],
+            "CMa": [0.1, 0.2, 0.3],
+            "CLa": [0.4, 0.5, 0.6],
+            "Clp": [0.7, 0.8, 0.9],
+        }
+    }
+    tables = make_aero_tables(preset)
+    assert tables["CMa_table"] is not None
+    assert tables["CLa_table"] is not None
+    assert tables["Clp_table"] is not None
+    assert tables["CMa_table"].shape == (3, 2)
+    assert np.allclose(tables["CMa_table"][:, 0], [0.0, 1.0, 2.0])
+    assert np.allclose(tables["CMa_table"][:, 1], [0.1, 0.2, 0.3])
+
+
+def test_make_aero_tables_length_mismatch() -> None:
+    """aero 字段系数与 ma 长度不匹配时应保持 None。"""
+    preset = {
+        "aero": {
+            "ma": [0.0, 1.0, 2.0],
+            "CMa": [0.1, 0.2],
+            "CLa": [0.4],
+            "Clp": [0.7, 0.8, 0.9, 1.0],
+        }
+    }
+    tables = make_aero_tables(preset)
+    assert tables["CMa_table"] is None
+    assert tables["CLa_table"] is None
+    assert tables["Clp_table"] is None

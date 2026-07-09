@@ -18,7 +18,11 @@ from ballistic_sim.context import (
     _resolve_wind,
 )
 from ballistic_sim.dynamics.common import DynamicContext
-from ballistic_sim.models.aerodynamics import ProjectileAeroModel, RocketAeroModel
+from ballistic_sim.models.aerodynamics import (
+    ConstantAeroModel,
+    ProjectileAeroModel,
+    RocketAeroModel,
+)
 from ballistic_sim.models.atmosphere import AtmosphereModel
 from ballistic_sim.models.terrain import NullTerrainModel
 from ballistic_sim.models.wind import (
@@ -233,3 +237,47 @@ def test_resolve_dynamics_context_for_all_missions(mission: str) -> None:
         assert isinstance(ctx.aero, ProjectileAeroModel)
     else:
         assert isinstance(ctx.aero, RocketAeroModel)
+
+
+def test_resolve_wind_unknown() -> None:
+    """未知风模型应抛出 ValueError。"""
+    cfg = _make_cfg()
+    cfg.environment.wind_model = "unknown"
+    with pytest.raises(ValueError) as exc_info:
+        _resolve_wind(cfg)
+    assert "未知风场模型" in str(exc_info.value)
+
+
+def test_resolve_wind_composite_from_path(tmp_path) -> None:
+    """composite 风模型仅提供 wind_profile_path 时也能正确读取。"""
+    path = tmp_path / "wind_profile.txt"
+    path.write_text("# h e n u\n0 0 0 0\n2000 4 0 0", encoding="utf-8")
+    cfg = _make_cfg(
+        env=EnvironmentConfig(
+            wind_model="composite",
+            wind_profile_path=str(path),
+            wind_profile_text=None,
+            wind_u_ref=3.0,
+        )
+    )
+    wind = _resolve_wind(cfg)
+    assert isinstance(wind, CompositeWind)
+
+
+def test_resolve_terrain_unknown() -> None:
+    """未知地形模型应抛出 ValueError。"""
+    cfg = _make_cfg()
+    cfg.environment.terrain_model = "unknown"
+    with pytest.raises(ValueError) as exc_info:
+        _resolve_terrain(cfg)
+    assert "未知地形模型" in str(exc_info.value)
+
+
+def test_resolve_dynamics_context_unknown_mission() -> None:
+    """未知 mission 类型回退到 constant 气动模型。"""
+    cfg = _make_cfg()
+    cfg.mission = "unknown"
+    ctx = _resolve_dynamics_context(cfg)
+    assert isinstance(ctx, DynamicContext)
+    assert isinstance(ctx.aero, ConstantAeroModel)
+    assert ctx.aero.drag_coefficient(0.5) == pytest.approx(cfg.vehicle.cd)

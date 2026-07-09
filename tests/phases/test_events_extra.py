@@ -6,11 +6,13 @@ import numpy as np
 import pytest
 
 from ballistic_sim.constants import WGS84_A, GM_EARTH
+from ballistic_sim.frames import ecef_to_eci, geodetic_to_ecef
 from ballistic_sim.phases.events import (
     make_apogee_event,
     make_burnout_event,
     make_fairing_event_h,
     make_fairing_event_q,
+    make_fairing_jettison_event,
     make_ground_event,
     make_orbit_insertion_event,
     make_stage_separation_event,
@@ -103,3 +105,36 @@ def test_fairing_event_q() -> None:
     ev = make_fairing_event_q(q_fn, q_thresh_pa=200.0)
     assert ev(0.0, np.zeros(7)) < 0.0
     assert ev.terminal is False
+
+
+def test_fairing_event_h_eci() -> None:
+    """ECI 模式下几何高度抛整流罩事件。"""
+    ev = make_fairing_event_h(100e3, frame="ECI", theta0=0.0)
+    r_ecef = geodetic_to_ecef(0.0, 0.0, 150e3)
+    r_eci = ecef_to_eci(r_ecef, 0.0)
+    y = np.concatenate([r_eci, np.zeros(3)])
+    assert ev(0.0, y) > 0.0
+
+    r_ecef2 = geodetic_to_ecef(0.0, 0.0, 50e3)
+    r_eci2 = ecef_to_eci(r_ecef2, 0.0)
+    y2 = np.concatenate([r_eci2, np.zeros(3)])
+    assert ev(0.0, y2) < 0.0
+    assert ev.terminal is False
+
+
+def test_fairing_jettison_q_mode() -> None:
+    """mode='q' 时按动压下穿阈值构造事件。"""
+
+    def q_fn(t: float, y: np.ndarray) -> float:
+        return 100.0
+
+    ev = make_fairing_jettison_event(mode="q", q_fn=q_fn, q_thresh_pa=200.0)
+    assert ev(0.0, np.zeros(7)) < 0.0
+    assert ev.terminal is False
+
+
+def test_fairing_jettison_invalid_mode() -> None:
+    """无效抛罩模式应抛出 ValueError。"""
+    with pytest.raises(ValueError) as exc_info:
+        make_fairing_jettison_event(mode="invalid", h_m=100e3)
+    assert "未知的抛罩模式" in str(exc_info.value)

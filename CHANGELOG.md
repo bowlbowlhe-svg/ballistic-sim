@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/).
 
+## [0.6.1] - 2026-07-09
+
+### Added
+
+- 补充覆盖率缺口测试：
+  - `presets/loader.py` 异常分支（文件不存在、发射场缺失、aero 表长度匹配）。
+  - `context.py` 未知风/地形模型、`composite` 风剖面文件读取、未知 mission 回退分支。
+  - `phases/events.py` 抛整流罩 ECI 分支与 `mode="q"`/无效模式分支。
+  - `simulator.py` `integration_failed` 失败路径。
+
+### Changed
+
+- 全量测试覆盖率从 87.47% 提升到 87.99%。
+
 ## [0.6.0] - 2026-07-09
 
 ### Removed
