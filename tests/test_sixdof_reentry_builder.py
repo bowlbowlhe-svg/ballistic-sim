@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-import warnings
-
 import numpy as np
 import pytest
+from scipy.integrate import solve_ivp
 
 from ballistic_sim.config import (
     EnvironmentConfig,
@@ -15,12 +14,12 @@ from ballistic_sim.config import (
     SimConfig,
     VehicleConfig,
 )
+from ballistic_sim.context import _resolve_dynamics_context
 from ballistic_sim.dynamics.six_dof import SixDOFDynamics
+from ballistic_sim.phases.base import PhaseContext
 from ballistic_sim.phases.builder import build_phases
-from ballistic_sim.phases.powered import PoweredPhase
+from ballistic_sim.phases.coasting import CoastingPhase
 from ballistic_sim.phases.reentry import ReentryPhase
-from ballistic_sim.phases.terminal import TerminalPhase
-from ballistic_sim.simulator import simulate
 
 
 def _d30_coeff_tables():
@@ -70,7 +69,7 @@ def test_builder_no_sixdof_reentry_by_default() -> None:
 
 @pytest.mark.slow
 def test_simulate_projectile_with_sixdof_phase() -> None:
-    """用 SixDOFDynamics 作为单段 6-DOF 弹道，验证可落地。"""
+    """用 SixDOFDynamics 直接积分，验证可落地。"""
     mass_kg = 21.76
     diameter_m = 0.122
     dyn = SixDOFDynamics(
@@ -106,26 +105,37 @@ def test_simulate_projectile_with_sixdof_phase() -> None:
             terminate_impact=True,
         ),
     )
-    phases = [
-        PoweredPhase(
-            name="6-DOF 弹道",
-            t_span=(cfg.launch.t0_s, cfg.launch.t0_s + 400.0),
-            dynamics=dyn,
-            guidance=None,
-            m_dry=mass_kg,
-            sep_name="落地",
-        ),
-        TerminalPhase(
-            name="终点",
-            t_span=(cfg.launch.t0_s, cfg.launch.t0_s + 400.0),
-            dynamics=dyn,
-        ),
-    ]
-    # 直接构造 SixDOFDynamics/Phase 验证再入 builder 集成，属于 phase 显式传参的合法例外。
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", DeprecationWarning)
-        result = simulate(cfg, phases=phases)
-    assert result.stop_reason == "completed"
-    assert result.t.size > 0
-    landing_events = [ev for ev in result.event_log if "落地" in ev.get("name", "")]
-    assert len(landing_events) >= 1, f"events={result.event_log}"
+    ctx = _resolve_dynamics_context(cfg)
+    cfg._dynamics_context = ctx  # type: ignore[attr-defined]
+    phase = CoastingPhase(
+        name="6-DOF 弹道",
+        t_span=(cfg.launch.t0_s, cfg.launch.t0_s + 400.0),
+        dynamics=dyn,
+        terrain=ctx.terrain,
+        lat0=cfg.launch.lat_deg,
+        lon0=cfg.launch.lon_deg,
+    )
+    pctx = PhaseContext(cfg=cfg, phase=phase, t0=cfg.launch.t0_s)
+    y0 = dyn.initial_state(
+        v0=cfg.launch.v0_m_s,
+        theta_deg=cfg.launch.elevation_deg,
+        az_deg=cfg.launch.azimuth_deg,
+        h0=cfg.launch.alt_m,
+    )
+    sol = solve_ivp(
+        lambda t, y: dyn.rhs(t, y, pctx),
+        (cfg.launch.t0_s, cfg.launch.t0_s + 400.0),
+        y0,
+        method=cfg.options.integrator,
+        rtol=cfg.options.rtol,
+        atol=cfg.options.atol,
+        max_step=cfg.options.max_step,
+        events=phase.events,
+        dense_output=True,
+    )
+    assert sol.success
+    assert sol.t.size > 0
+    # 落地事件为 phase.events 第二项（远地点非 terminal，落地 terminal）
+    assert sol.t_events is not None
+    assert len(sol.t_events) > 1 and sol.t_events[1] is not None
+    assert len(sol.t_events[1]) >= 1, f"未触发落地事件: t_events={sol.t_events}"

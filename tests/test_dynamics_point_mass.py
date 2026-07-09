@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import warnings
 from pathlib import Path
 from typing import Any
 
@@ -27,7 +26,6 @@ from ballistic_sim.models.atmosphere import StandardAtmosphere
 from ballistic_sim.models.wind import UniformWind
 from ballistic_sim.phases.base import PhaseContext
 from ballistic_sim.phases.coasting import CoastingPhase
-from ballistic_sim.simulator import simulate
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 GOLDEN_PATH = PROJECT_ROOT / "tests" / "golden" / "point_mass_rhs_baseline.json"
@@ -138,7 +136,7 @@ def test_aero_env_full_reuses_wind_and_atm() -> None:
 
 
 def test_rhs_enu_smoke_via_simulate() -> None:
-    """ENU 框架下使用 PointMassDynamics 的 simulate smoke 测试。"""
+    """ENU 框架下使用 PointMassDynamics 直接积分 smoke 测试。"""
     cfg = SimConfig(
         mission="projectile",
         vehicle=VehicleConfig(mass_kg=10.0, diameter_m=0.1, cd=0.3),
@@ -170,21 +168,31 @@ def test_rhs_enu_smoke_via_simulate() -> None:
         lat0=cfg.launch.lat_deg,
         lon0=cfg.launch.lon_deg,
     )
-    # 直接构造 PointMassDynamics/Phase 进行 smoke 测试，属于 phase 显式传参的合法例外。
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", DeprecationWarning)
-        # 直接构造 PointMassDynamics/Phase 进行 smoke 测试，属于 phase 显式传参的合法例外。
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", DeprecationWarning)
-        result = simulate(cfg, phases=[phase])
-    assert result.stop_reason == "completed"
-    assert len(result.t) > 2
+    pctx = PhaseContext(cfg=cfg, phase=phase, t0=cfg.launch.t0_s)
+    y0 = dyn.initial_state(
+        v0=cfg.launch.v0_m_s,
+        theta_deg=cfg.launch.elevation_deg,
+        az_deg=cfg.launch.azimuth_deg,
+        h0=cfg.launch.alt_m,
+    )
+    sol = solve_ivp(
+        lambda t, y: dyn.rhs(t, y, pctx),
+        (cfg.launch.t0_s, cfg.launch.t0_s + 300.0),
+        y0,
+        method=cfg.options.integrator,
+        rtol=cfg.options.rtol,
+        atol=cfg.options.atol,
+        max_step=cfg.options.max_step,
+        dense_output=True,
+    )
+    assert sol.success
+    assert len(sol.t) > 2
     # 落地事件应触发
-    assert result.y[-1, 2] < 10.0
+    assert sol.y[2, -1] < 10.0
 
 
 def test_rhs_eci_smoke_via_simulate() -> None:
-    """ECI 框架下使用 PointMassDynamics 的 simulate smoke 测试。"""
+    """ECI 框架下使用 PointMassDynamics 直接积分 smoke 测试。"""
     cfg = SimConfig(
         mission="projectile",
         vehicle=VehicleConfig(mass_kg=10.0, diameter_m=0.1, cd=0.3),
@@ -216,12 +224,25 @@ def test_rhs_eci_smoke_via_simulate() -> None:
         lat0=cfg.launch.lat_deg,
         lon0=cfg.launch.lon_deg,
     )
-    # 直接构造 PointMassDynamics/Phase 进行 smoke 测试，属于 phase 显式传参的合法例外。
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", DeprecationWarning)
-        result = simulate(cfg, phases=[phase])
-    assert result.stop_reason == "completed"
-    assert len(result.t) > 2
+    pctx = PhaseContext(cfg=cfg, phase=phase, t0=cfg.launch.t0_s)
+    y0 = dyn.initial_state(
+        v0=cfg.launch.v0_m_s,
+        theta_deg=cfg.launch.elevation_deg,
+        az_deg=cfg.launch.azimuth_deg,
+        h0=cfg.launch.alt_m,
+    )
+    sol = solve_ivp(
+        lambda t, y: dyn.rhs(t, y, pctx),
+        (cfg.launch.t0_s, cfg.launch.t0_s + 300.0),
+        y0,
+        method=cfg.options.integrator,
+        rtol=cfg.options.rtol,
+        atol=cfg.options.atol,
+        max_step=cfg.options.max_step,
+        dense_output=True,
+    )
+    assert sol.success
+    assert len(sol.t) > 2
 
 
 def test_aero_env_full_via_phase_context() -> None:

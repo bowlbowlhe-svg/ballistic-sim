@@ -3,15 +3,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
-import warnings
+from typing import Any, Dict, List
 
 import numpy as np
 from scipy.integrate import solve_ivp
 
 from ballistic_sim.config import SimConfig, validate_config
 from ballistic_sim.context import _resolve_dynamics_context
-from ballistic_sim.phases.base import Phase
 from ballistic_sim.state_switch import project_state
 
 
@@ -29,13 +27,13 @@ class SimResult:
 
 def simulate(
     cfg: SimConfig,
-    phases: Optional[List[Phase]] = None,
+    *,
     reuse_context: bool = True,
 ) -> SimResult:
     """统一仿真主循环。
 
-    按 ``phases`` 顺序逐段调用 ``solve_ivp``，段间通过 ``project_state`` 映射状态，
-    拼接全程轨迹并记录事件日志。
+    按 ``build_phases(cfg)`` 生成的阶段顺序逐段调用 ``solve_ivp``，
+    段间通过 ``project_state`` 映射状态，拼接全程轨迹并记录事件日志。
 
     Parameters
     ----------
@@ -53,16 +51,7 @@ def simulate(
             lines.append(f"  [{issue.severity}] {issue.path}: {issue.message}")
         raise ValueError("\n".join(lines))
 
-    if phases is None:
-        phases = build_phases(cfg)
-    else:
-        warnings.warn(
-            "显式传入 phases 自 v0.5.0 起已弃用，请改用 simulate(cfg)。",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        if phases == []:
-            phases = build_phases(cfg)
+    phases = build_phases(cfg)
 
     if reuse_context and getattr(cfg, "_dynamics_context", None) is not None:
         dyn_ctx = cfg._dynamics_context  # type: ignore[attr-defined]

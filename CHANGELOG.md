@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/).
 
+## [0.6.0] - 2026-07-09
+
+### Removed
+
+- `simulate(..., phases=...)` 参数正式移除；`test_simulate_phases_deprecation.py` 删除。
+
+### Changed
+
+- 所有调用方必须改用 `simulate(cfg)`。
+
 ## [0.5.0] - 2026-07-06
 
 ### Removed
@@ -267,5 +277,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 | `v0.2.0-stage2.5` | 阶段 2.5 | Web API 与服务 |
 | `v0.2.0` | 阶段 2 收尾 | 占位功能补齐、导弹弹道整形、6-DOF 推力接口、版本发布 |
 
+[0.6.0]: https://github.com/bowlbowlhe-svg/ballistic-sim/releases/tag/v0.6.0
+[0.5.0]: https://github.com/bowlbowlhe-svg/ballistic-sim/releases/tag/v0.5.0
 [0.2.0]: https://github.com/bowlbowlhe-svg/ballistic-sim/releases/tag/v0.2.0
 [0.1.0]: https://github.com/bowlbowlhe-svg/ballistic-sim/releases/tag/v0.1.0

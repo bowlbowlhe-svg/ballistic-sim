@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import warnings
-
 import numpy as np
 import pytest
 
@@ -16,9 +14,7 @@ from ballistic_sim.config import (
     VehicleConfig,
 )
 from ballistic_sim.dynamics.batch_mpm import BatchMPMModel
-from ballistic_sim.dynamics.mpm import MPMOptions, MPMDynamics
-from ballistic_sim.phases.powered import PoweredPhase
-from ballistic_sim.phases.terminal import TerminalPhase
+from ballistic_sim.dynamics.mpm import MPMOptions
 from ballistic_sim.simulator import simulate
 
 
@@ -46,48 +42,20 @@ def _base_cfg(
             density_factor=1.0,
         ),
         guidance=GuidanceConfig(),
-        options=OptionsConfig(),
+        options=OptionsConfig(
+            integrator="DOP853",
+            mpm_use_spin=False,
+            rtol=1e-6,
+            atol=1e-9,
+            max_step=1.0,
+            terminate_impact=True,
+        ),
     )
 
 
-def _single_mpm_result(cfg: SimConfig, dt: float = 0.05) -> tuple[float, float, float]:
+def _single_mpm_result(cfg: SimConfig) -> tuple[float, float, float]:
     """使用单发 MPM（spin/dynamic_alpha 关闭）仿真并返回 (range_m, cross_m, tof)."""
-    opt = MPMOptions(
-        use_drag=True,
-        use_wind=bool(cfg.environment.wind_m_s),
-        use_coriolis=True,
-        use_spin=False,
-        use_dynamic_alpha=False,
-        method="DOP853",
-        rtol=1e-6,
-        atol=1e-9,
-    )
-    dyn = MPMDynamics(
-        mass_kg=cfg.vehicle.mass_kg,
-        diameter_m=cfg.vehicle.diameter_m,
-        form_factor=cfg.vehicle.cd or 1.0,
-        options=opt,
-        lat_deg=cfg.launch.lat_deg,
-    )
-    phases = [
-        PoweredPhase(
-            name="无动力弹道",
-            t_span=(cfg.launch.t0_s, cfg.launch.t0_s + 3000.0),
-            dynamics=dyn,
-            guidance=None,
-            m_dry=cfg.vehicle.mass_kg,
-            sep_name="落地",
-        ),
-        TerminalPhase(
-            name="终点",
-            t_span=(cfg.launch.t0_s, cfg.launch.t0_s + 3000.0),
-            dynamics=dyn,
-        ),
-    ]
-    # 本测试直接构造 MPMDynamics/Phase 以验证批量与单发一致性，属于 phase 显式传参的合法例外。
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", DeprecationWarning)
-        result = simulate(cfg, phases=phases)
+    result = simulate(cfg)
     e, n, u = result.y[-1, 0], result.y[-1, 1], result.y[-1, 2]
     assert u <= 1e-6, f"MPM 未落地，末高度 {u}"
     return float(np.hypot(e, n)), float(e), float(result.t[-1])
