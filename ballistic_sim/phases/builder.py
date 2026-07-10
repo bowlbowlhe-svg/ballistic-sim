@@ -227,6 +227,13 @@ def _build_rocket_phases_legacy(cfg: SimConfig) -> List[Phase]:
         modes={"drag": cfg.guidance.use_drag, "j2": True, "thrust": True},
     )
     t_burn_est = float(stage["m_prop"]) / dyn.prop.mdot
+    # 滑行/终点阶段关闭推力，避免质量耗尽后继续加速导致无法落地。
+    coast_dyn = PoweredECIDynamics(
+        stage=stage,
+        guidance=guidance,
+        modes={"drag": True, "j2": True, "thrust": False},
+    )
+
     phases: List[Phase] = [
         PoweredPhase(
             name="动力上升",
@@ -242,7 +249,7 @@ def _build_rocket_phases_legacy(cfg: SimConfig) -> List[Phase]:
         CoastingPhase(
             name="滑行",
             t_span=(cfg.launch.t0_s, cfg.launch.t0_s + 3600.0),
-            dynamics=dyn,
+            dynamics=coast_dyn,
             terrain=terrain,
             lat0=cfg.launch.lat_deg,
             lon0=cfg.launch.lon_deg,
@@ -295,7 +302,7 @@ def _build_rocket_phases_legacy(cfg: SimConfig) -> List[Phase]:
         TerminalPhase(
             name="轨道插入",
             t_span=(cfg.launch.t0_s, cfg.launch.t0_s + 3600.0),
-            dynamics=dyn,
+            dynamics=coast_dyn,
             terrain=terrain,
             lat0=cfg.launch.lat_deg,
             lon0=cfg.launch.lon_deg,

@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/).
 
+## [0.7.1] - 2026-07-10
+
+### Fixed
+
+- 修复 GUI 中 ``VehicleConfig.stages`` 等 ``List[BaseModel]`` 字段回读失败的问题：
+  - ``ballistic_sim/gui/fields.py`` 新增 ``list_model`` 类型处理，使用 JSON 序列化/反序列化嵌套模型列表。
+  - 新增 ``ballistic_sim/gui/__main__.py``，支持 ``python -m ballistic_sim.gui``。
+  - 新增 ``launch_gui.bat`` 一键启动可视化界面。
+- 修复 ``icbm`` / ``suborbital`` 默认配置仿真卡死或立即结束的问题：
+  - ``phases/builder.py`` 的 legacy 路径为滑行/终点段单独构造 ``thrust=False`` 的动力学模块。
+  - ``dynamics/powered_eci.py`` 在推力关闭时质量不再继续下降（``dm/dt = 0``）。
+  - ``PoweredECIDynamics.initial_state`` 给海平面高度加 1 µm 偏移，避免落地事件在 ``t=0`` 触发。
+
+### Added
+
+- 端对端测试覆盖所有 mission / preset 组合：
+  - ``tests/test_mission_presets_end_to_end.py``：对每个 projectile / missile / rocket 预设以及 ``icbm`` / ``suborbital`` 默认配置运行完整仿真，并校验 ``_compute_summary``、坐标系、``plot_altitude_range`` 结果一致性。
+  - ``tests/gui/test_gui_fields_roundtrip.py``：校验 ``VehicleConfig.stages`` 表单字段的序列化与反序列化。
+  - ``tests/gui/test_gui_app_roundtrip.py``：校验 GUI 应用为每种 mission / preset 加载表单后都能回读出合法 ``SimConfig``。
+
 ## [0.7.0] - 2026-07-09
 
 ### Added

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import ast
+import json
 import tkinter as tk
 from tkinter import ttk
 from typing import Any, Dict, List, Type, Union, cast, get_args, get_origin
@@ -40,12 +42,35 @@ def _is_list(annotation: Any) -> bool:
     return origin is list or (isinstance(origin, type) and issubclass(origin, list))
 
 
+def _inner_type(annotation: Any) -> Any:
+    """返回 List[T] 或 Optional[List[T]] 中的 T。"""
+    if _is_optional(annotation):
+        annotation = _inner_optional(annotation)
+    if not _is_list(annotation):
+        return None
+    args = get_args(annotation)
+    return args[0] if args else None
+
+
+def _is_model_type(annotation: Any) -> bool:
+    """判断注解是否为 pydantic BaseModel（支持 Optional/Union 包装）。"""
+    if _is_optional(annotation):
+        annotation = _inner_optional(annotation)
+    try:
+        return isinstance(annotation, type) and issubclass(annotation, BaseModel)
+    except TypeError:
+        return False
+
+
 def _non_optional_type(annotation: Any) -> str:
     """对非 Optional 注解归类。"""
     if _is_literal(annotation):
         return "literal"
     origin = get_origin(annotation)
     if origin is not None and _is_list(annotation):
+        inner = _inner_type(annotation)
+        if _is_model_type(inner):
+            return "list_model"
         return "list"
     if annotation is bool:
         return "bool"
@@ -88,9 +113,17 @@ def _var_for_type(field_type: str, value: Any) -> tk.Variable:
         return tk.StringVar(value=text)
     if field_type == "literal":
         return tk.StringVar(value=str(value) if value is not None else "")
-    if field_type == "list":
+    if field_type in ("list", "optional_list"):
         if isinstance(value, (list, tuple)):
             text = ", ".join(str(v) for v in value)
+        elif value is None:
+            text = ""
+        else:
+            text = str(value)
+        return tk.StringVar(value=text)
+    if field_type in ("list_model", "optional_list_model"):
+        if isinstance(value, (list, tuple)):
+            text = json.dumps(value, ensure_ascii=False, indent=2)
         elif value is None:
             text = ""
         else:
@@ -220,11 +253,35 @@ def read_model_variables(
                 data[name] = 0.0
         elif field_type == "list":
             data[name] = _parse_list_value(str(raw))
+        elif field_type == "list_model":
+            data[name] = _parse_list_model_value(str(raw), annotation)
+        elif field_type == "optional_list_model":
+            data[name] = _parse_list_model_value(str(raw), annotation) if str(raw).strip() else None
         elif field_type.startswith("optional_"):
             data[name] = _parse_optional(field_type, raw)
         else:
             data[name] = str(raw) if raw != "" else None
     return data
+
+
+def _parse_list_model_value(text: str, annotation: Any) -> List[Any]:
+    """将 JSON/YAML/Py repr 字符串解析为 BaseModel 列表。"""
+    text = text.strip()
+    if not text:
+        return []
+    item_cls = _inner_type(annotation)
+    if item_cls is None:
+        raise ValueError(f"无法识别列表元素类型: {annotation}")
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError:
+        try:
+            parsed = ast.literal_eval(text)
+        except (ValueError, SyntaxError) as exc:
+            raise ValueError(f"列表格式错误: {exc}") from exc
+    if not isinstance(parsed, list):
+        raise ValueError("列表字段应为一个数组")
+    return [item_cls(**item) if isinstance(item, dict) else item_cls(item) for item in parsed]
 
 
 def update_model_variables(variables: Dict[str, tk.Variable], model: BaseModel) -> None:
@@ -240,7 +297,10 @@ def update_model_variables(variables: Dict[str, tk.Variable], model: BaseModel) 
             var.set(float(value) if value is not None else 0.0)
         elif isinstance(var, tk.StringVar):
             if isinstance(value, (list, tuple)):
-                var.set(", ".join(str(v) for v in value))
+                if value and isinstance(value[0], dict):
+                    var.set(json.dumps(list(value), ensure_ascii=False, indent=2))
+                else:
+                    var.set(", ".join(str(v) for v in value))
             elif value is None:
                 var.set("")
             else:

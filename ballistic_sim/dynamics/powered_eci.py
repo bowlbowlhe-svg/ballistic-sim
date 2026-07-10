@@ -60,6 +60,8 @@ class PoweredECIDynamics:
 
         lat = float(self.guidance.get("lat_deg", 0.0))
         lon = float(self.guidance.get("lon_deg", 0.0))
+        # 避免海平面高度恰好为 0 时落地事件在 t=0 触发
+        h0 = max(float(h0), 1e-6)
         r0, v0_eci = launch_state_eci(lat, lon, h0)
         m0 = float(self.stage.get("m_dry", 0.0)) + float(self.stage.get("m_prop", 0.0))
         return np.concatenate([r0, v0_eci, [m0]])
@@ -189,7 +191,8 @@ class PoweredECIDynamics:
 
         a += self._drag_accel(dyn_ctx, v_rel, env, m)
 
-        return np.concatenate([v, a, [-self.prop.mdot]])
+        dm_dt = -self.prop.mdot if self.modes.get("thrust", True) else 0.0
+        return np.concatenate([v, a, [dm_dt]])
 
     def telemetry(self, t: float, y: np.ndarray, ctx: Any) -> Dict[str, Any]:
         from ballistic_sim.phases.base import PhaseContext
