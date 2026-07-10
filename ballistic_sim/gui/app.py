@@ -6,7 +6,7 @@ import queue
 import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from ballistic_sim.cli import _compute_summary
 from ballistic_sim.config import MonteCarloConfig, SimConfig
@@ -22,8 +22,10 @@ from ballistic_sim.gui.fields import build_form, read_model_variables, update_mo
 from ballistic_sim.gui.runner import SimulationRunner
 from ballistic_sim.simulator import SimResult
 from ballistic_sim.viz import attach_launch_lla
+from ballistic_sim.viz.groundtrack import plot_groundtrack, plot_impact_summary
 from ballistic_sim.viz.interactive3d import plot_trajectory_3d
-from ballistic_sim.viz.profile import plot_altitude_range
+from ballistic_sim.viz.profile import plot_altitude_range, plot_velocity_profile
+from ballistic_sim.viz.trajectory3d import plot_trajectory3d, plot_trajectory3d_topdown
 
 
 class BallisticGuiApp(ttk.Frame):
@@ -112,23 +114,26 @@ class BallisticGuiApp(ttk.Frame):
         self._right_notebook = ttk.Notebook(right)
         self._right_notebook.pack(fill="both", expand=True, padx=4, pady=4)
 
-        tab_2d = ttk.Frame(self._right_notebook)
-        self._right_notebook.add(tab_2d, text="2D 曲线")
-
         import matplotlib
 
         matplotlib.use("TkAgg")
-        from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-        from matplotlib.figure import Figure
 
-        self._fig = Figure(figsize=(8, 6), dpi=100)
-        self._ax = self._fig.add_subplot(111)
-        self._canvas = FigureCanvasTkAgg(self._fig, master=tab_2d)
-        self._canvas.get_tk_widget().pack(fill="both", expand=True, padx=4, pady=4)
+        self._plot_tabs: List[Tuple[str, ttk.Frame, Optional[Callable[[SimResult], Any]]]] = []
 
-        tab_3d = ttk.Frame(self._right_notebook)
-        self._right_notebook.add(tab_3d, text="3D 轨迹")
+        def _add_plot_tab(label: str, plot_fn: Optional[Callable[[SimResult], Any]]) -> ttk.Frame:
+            frame = ttk.Frame(self._right_notebook)
+            self._right_notebook.add(frame, text=label)
+            self._plot_tabs.append((label, frame, plot_fn))
+            return frame
 
+        _add_plot_tab("高度-射程", plot_altitude_range)
+        _add_plot_tab("高度/速度-时间", plot_velocity_profile)
+        _add_plot_tab("地面航迹", plot_groundtrack)
+        _add_plot_tab("落点摘要", plot_impact_summary)
+        _add_plot_tab("3D 弹道", plot_trajectory3d)
+        _add_plot_tab("顶视/侧视", plot_trajectory3d_topdown)
+
+        tab_3d = _add_plot_tab("3D 轨迹 (plotly)", None)
         self._3d_status_label = tk.Label(
             tab_3d,
             text="点击按钮生成 3D 轨迹（需安装 plotly）",
@@ -140,6 +145,20 @@ class BallisticGuiApp(ttk.Frame):
             text="生成 3D 轨迹",
             command=self._on_generate_3d,
         ).pack(pady=4)
+
+        tab_events = _add_plot_tab("事件日志", None)
+        self._event_tree = ttk.Treeview(
+            tab_events,
+            columns=("phase", "name", "t"),
+            show="headings",
+        )
+        self._event_tree.heading("phase", text="阶段")
+        self._event_tree.heading("name", text="事件")
+        self._event_tree.heading("t", text="时刻 (s)")
+        self._event_tree.column("phase", width=120)
+        self._event_tree.column("name", width=180)
+        self._event_tree.column("t", width=120)
+        self._event_tree.pack(fill="both", expand=True, padx=4, pady=4)
 
     # -------------------------------------------------------------------------
     # 事件处理
@@ -287,33 +306,64 @@ class BallisticGuiApp(ttk.Frame):
         summary = _compute_summary(cfg, result)
 
         self._summary_text.delete("1.0", "end")
-        self._summary_text.insert("end", f"Mission: {cfg.mission}\n")
-        self._summary_text.insert("end", f"Stop   : {summary.get('stop_reason')}\n")
-        self._summary_text.insert("end", f"TOF    : {summary.get('t_end_s')} s\n")
+        lines = [
+            f"Mission: {cfg.mission}",
+            f"Stop   : {summary.get('stop_reason')}",
+            f"TOF    : {summary.get('t_end_s')} s",
+        ]
         if "range_m" in summary:
-            self._summary_text.insert("end", f"Range  : {summary['range_m'] / 1e3:.2f} km\n")
+            lines.append(f"Range  : {summary['range_m'] / 1e3:.2f} km")
+        if "max_alt_m" in summary:
+            lines.append(f"Max Alt: {summary['max_alt_m'] / 1e3:.2f} km")
+        if "impact_speed_m_s" in summary:
+            lines.append(f"Impact : {summary['impact_speed_m_s']:.1f} m/s")
         if "v_end_m_s" in summary:
-            self._summary_text.insert("end", f"V_end  : {summary['v_end_m_s']:.1f} m/s\n")
+            lines.append(f"V_end  : {summary['v_end_m_s']:.1f} m/s")
+        if "orbit" in summary:
+            orbit = summary["orbit"]
+            lines.append(
+                f"Orbit  : a={orbit['a_m']/1e3:.1f} km, e={orbit['e']:.3f}, "
+                f"i={orbit['i_deg']:.1f}°, h_peri={orbit['h_peri_km']:.1f} km"
+            )
+        self._summary_text.insert("end", "\n".join(lines) + "\n")
 
-        self._ax.clear()
-        if result.y.size:
+        self._refresh_plot_tabs(result)
+        self._refresh_event_tree(result)
+
+    def _refresh_plot_tabs(self, result: SimResult) -> None:
+        """根据最新仿真结果刷新所有 matplotlib 图表页签。"""
+        from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+
+        for label, frame, plot_fn in self._plot_tabs:
+            if plot_fn is None:
+                continue
+            for w in frame.winfo_children():
+                w.destroy()
             try:
-                fig = plot_altitude_range(result)
-                self._ax.clear()
-                for line in fig.axes[0].get_lines():
-                    self._ax.plot(line.get_xdata(), line.get_ydata(), label=line.get_label())
-                self._ax.set_xlabel("Downrange (km)")
-                self._ax.set_ylabel("Altitude (km)")
-                self._ax.set_title("Altitude vs Downrange")
-                self._ax.set_ylim(bottom=0.0)
-                self._ax.legend()
-                self._ax.grid(True)
+                fig = plot_fn(result)
+                canvas = FigureCanvasTkAgg(fig, master=frame)
+                canvas.get_tk_widget().pack(fill="both", expand=True, padx=4, pady=4)
+                canvas.draw()
             except Exception as exc:  # noqa: BLE001
-                self._ax.text(0.5, 0.5, f"绘图失败: {exc}", ha="center", va="center")
-        else:
-            self._ax.text(0.5, 0.5, "无轨迹数据", ha="center", va="center")
-        self._fig.tight_layout()
-        self._canvas.draw()
+                msg = tk.Label(frame, text=f"[{label}] 绘图失败: {exc}", wraplength=600)
+                msg.pack(expand=True)
+
+    def _refresh_event_tree(self, result: SimResult) -> None:
+        """刷新事件日志树。"""
+        for item in self._event_tree.get_children():
+            self._event_tree.delete(item)
+        for ev in result.event_log:
+            t = ev.get("t")
+            t_str = f"{t:.3f}" if isinstance(t, (int, float)) else str(t)
+            self._event_tree.insert(
+                "",
+                "end",
+                values=(
+                    ev.get("phase", ""),
+                    ev.get("name", ""),
+                    t_str,
+                ),
+            )
 
     # -------------------------------------------------------------------------
     # YAML 加载/保存

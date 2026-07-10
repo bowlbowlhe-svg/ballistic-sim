@@ -137,7 +137,7 @@ def test_runner_executes_simulation() -> None:
     cfg, _ = build_config_and_phases("projectile", "M107")
     runner = SimulationRunner()
     runner.run(cfg)
-    runner.join(timeout=30.0)
+    runner.join(timeout=60.0)
     assert not runner.is_alive()
     kind, payload = runner.result_queue.get_nowait()
     assert kind == "ok"

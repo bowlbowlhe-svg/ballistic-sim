@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/).
 
+## [0.7.2] - 2026-07-10
+
+### Added
+
+- GUI 结果可视化大幅增强：
+  - 新增 7 个结果页签：高度-射程、高度/速度-时间、地面航迹、落点摘要、3D 弹道、顶视/侧视、事件日志。
+  - 保留原有 plotly 3D 轨迹页签，并更名为 "3D 轨迹 (plotly)"。
+  - 摘要文本增加最大高度、落点速度、轨道参数等字段。
+  - 事件日志以表格形式展示阶段、事件名、触发时刻。
+
+### Changed
+
+- 将 ``tests/test_gui.py::test_runner_executes_simulation`` 的超时从 30 s 放宽到 60 s，降低高并发测试下的偶发失败。
+
 ## [0.7.1] - 2026-07-10
 
 ### Fixed
